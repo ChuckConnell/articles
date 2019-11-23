@@ -1,2 +1,2 @@
 # articles
-Code, data and other artificacts for Chuck's technical articles.
+Code, data and other artifacts for Chuck's technical articles.
