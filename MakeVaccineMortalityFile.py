@@ -11,9 +11,9 @@ from month_abbreviation import us_state_to_abbrev
 #from sys import exit
 
 OVERALL_START_DATE = pd.to_datetime("2021-03-01")
-PERIOD_LENGTH = 60  # days over which to count deaths
-PERIOD_COUNT = 3  # how many time blocks to count
-VAX_BACKDATE = 30     # how far back from start/end dates do we look for vax info
+PERIOD_LENGTH = 30  # days over which to count deaths
+PERIOD_COUNT = 7  # how many time blocks to count
+VAX_BACKDATE = 21     # how far back from start/end dates do we look for vax info
 COUNTY_OUTPUT_FILE = "AllCountiesAllPeriods.tsv"
 
 # Get the source data. 
