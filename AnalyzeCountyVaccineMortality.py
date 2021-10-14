@@ -23,7 +23,7 @@ print ("1+ vax to death correlation (Spearman) for all US counties over", county
 CountyVaxMortalityDF.plot.scatter(x="FullVaxPer100", y="DeathsPer100k", title="US Counties -- Full Vax per 100 vs Deaths per 100k -- " + str(county_rows) + " data points" )
 CountyVaxMortalityDF.plot.scatter(x="OnePlusVaxPer100", y="DeathsPer100k", title="US Counties -- 1+ Vax per 100 vs Deaths per 100k -- " + str(county_rows) + " data points")
 
-# TODO histograms of mortality and vax %s
+# Histograms of mortality and vax %s
 
 CountyVaxMortalityDF.hist(column="FullVaxPer100", bins=10)
 CountyVaxMortalityDF.hist(column="OnePlusVaxPer100", bins=10)
