@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
 
 import pandas as pd 
 
@@ -33,22 +29,5 @@ CountyVaxMortalityDF.hist(column="FullVaxPer100", bins=10)
 CountyVaxMortalityDF.hist(column="OnePlusVaxPer100", bins=10)
 CountyVaxMortalityDF.hist(column="DeathsPer100k", bins=10)
 CountyVaxMortalityDF.hist(column="DeathsPer100k", bins=10, range=[0, 50])
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
 
 
