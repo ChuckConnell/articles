@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
 
 # This program creates a data file that contains covid vaccine rates versus mortality, 
 # across time periods, for all US counties.
@@ -183,23 +179,4 @@ AllCountiesAllPeriodsDF = AllCountiesAllPeriodsDF[AllCountiesAllPeriodsDF.OnePlu
 
 print ("Writing county output to", COUNTY_OUTPUT_FILE, "with", AllCountiesAllPeriodsDF.shape[0], "rows.\n")
 AllCountiesAllPeriodsDF.to_csv(COUNTY_OUTPUT_FILE, encoding='utf-8', sep='\t', index=False)
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
 
