@@ -197,7 +197,7 @@ for this_period in range(PERIOD_COUNT):
     
     # Calc the dates we need.
     
-    this_period_start = OVERALL_START_DATE + datetime.timedelta(this_period * PERIOD_LENGTH)
+    this_period_start = OVERALL_START_DATE + datetime.timedelta(days=(this_period * PERIOD_LENGTH))
     this_period_end = this_period_start + datetime.timedelta(days=PERIOD_LENGTH)
     this_period_vax_start = this_period_start - datetime.timedelta(days=VAX_BACKDATE)
     this_period_vax_end = this_period_end - datetime.timedelta(days=VAX_BACKDATE)
@@ -357,7 +357,3 @@ print ("US Counties -- DeathsPer100k (<=50) -- " + str(rows) + " data points")
 OneColumnDF.plot.hist(bins=20, range=[0, 50], title="US Counties -- DeathsPer100k (<50) -- " + str(rows) + " data points")
 
 #PANDAS/PS-PANDAS DIFFERENCE: In pspd the range option does not work for histograms. As a workaround, select the range first.
-
-# COMMAND ----------
-
-
