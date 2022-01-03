@@ -6,24 +6,24 @@ import pandas as pd
 from month_abbreviation import us_state_to_abbrev
 #from sys import exit
 
-OVERALL_START_DATE = pd.to_datetime("2021-03-01")
-PERIOD_LENGTH = 30  # days over which to count deaths
-PERIOD_COUNT = 7  # how many time blocks to count
-VAX_BACKDATE = 21     # how far back from start/end dates do we look for vax info
+OVERALL_START_DATE = pd.to_datetime("2021-07-01")
+PERIOD_LENGTH = 180 # days over which to count deaths
+PERIOD_COUNT = 1  # how many time blocks to count
+VAX_BACKDATE = 30     # how far back from start/end dates do we look for vax info
 COUNTY_OUTPUT_FILE = "AllCountiesAllPeriods.tsv"
 
 # Get the source data. 
 
 # https://data.cdc.gov/Vaccinations/COVID-19-Vaccinations-in-the-United-States-County/8xkx-amqh 
-path = "C:/Users/chuck/Desktop/COVID Data/CDC/COVID-19_Vaccinations_in_the_United_States_County_04oct2021.tsv"
+path = "~/Desktop/COVID Programming/CDC/COVID-19_Vaccinations_in_the_United_States_County_30dec2021.tsv"
 VaxDF = pd.read_csv(path, sep='\t', header='infer', dtype=str)
 
 # https://github.com/nytimes/covid-19-data
-path = "C:/Users/chuck/Desktop/COVID Data/NYTimes/us-counties-04oct2021.txt"
+path = "~/Desktop/COVID Programming/NYT/us-counties-30dec2021.csv"
 DeathDF = pd.read_csv(path, sep=',', header='infer', dtype=str)
 
 # https://www.census.gov/programs-surveys/popest/technical-documentation/research/evaluation-estimates/2020-evaluation-estimates/2010s-counties-total.html  
-path = "C:/Users/chuck/Desktop/COVID Data/US Census/co-est2020.csv"
+path = "~/Desktop/COVID Programming/US Census/co-est2020.csv"
 PopDF = pd.read_csv(path, sep=',', header='infer', dtype=str, encoding='latin-1')
 
 # We only need a few columns from the files. 
@@ -170,10 +170,15 @@ AllCountiesAllPeriodsDF["FullVaxPer100"] = (100*(AllCountiesAllPeriodsDF["Series
 AllCountiesAllPeriodsDF["OnePlusVaxPer100"] = (100*(AllCountiesAllPeriodsDF["Administered_Dose1_Recip_Mid"]/AllCountiesAllPeriodsDF["POPESTIMATE2020"])).round(1)
 AllCountiesAllPeriodsDF["DeathsPer100k"] = (100000*(AllCountiesAllPeriodsDF["Deaths"]/AllCountiesAllPeriodsDF["POPESTIMATE2020"])).round(1)
 
-# If vax % is greater than 100, probably bad data, throw it out.
+# Some data cleanup, throwing out obviously bad values.
 
 AllCountiesAllPeriodsDF = AllCountiesAllPeriodsDF[AllCountiesAllPeriodsDF.FullVaxPer100 <= 100]  
+AllCountiesAllPeriodsDF = AllCountiesAllPeriodsDF[AllCountiesAllPeriodsDF.FullVaxPer100 >= 0]  
+
 AllCountiesAllPeriodsDF = AllCountiesAllPeriodsDF[AllCountiesAllPeriodsDF.OnePlusVaxPer100 <= 100]
+AllCountiesAllPeriodsDF = AllCountiesAllPeriodsDF[AllCountiesAllPeriodsDF.OnePlusVaxPer100 >= 0]
+
+AllCountiesAllPeriodsDF = AllCountiesAllPeriodsDF[AllCountiesAllPeriodsDF.DeathsPer100k >= 0]
 
 # Write to file.
 
