@@ -61,7 +61,7 @@ CountyDF["StateAbbr"] = CountyDF["StateName"].str.upper().map(us_state_to_abbrev
 
 # Add STATE-COUNTY
 
-CountyDF["STATE-COUNTY"] = CountyDF["StateAbbr"] + "-" + CountyDF["CountyName"].str.upper()  
+CountyDF["STATE_COUNTY"] = CountyDF["StateAbbr"] + " | " + CountyDF["CountyName"].str.upper()  
 
 # Write it out.
 
