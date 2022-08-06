@@ -1,8 +1,12 @@
 # Translate FIPS codes to state and county names.
 
-# The source data is found here: https://www.census.gov/geographies/reference-files/2017/demo/popest/2017-fips.html
+# The source data is found here: https://www.census.gov/geographies/reference-files/2021/demo/popest/2021-fips.html
 # There is a file of FIPS to states, and another of FIPS to counties (which uses the states).
-# To start, I manually opened the XLSX files and saved them as TSV, with some light editing to make them easier to use in pandas.
+# To start, I manually opened the XLSX files, cleaned them up, then saved as TSV.
+## Removed extra header rows other than column names
+## Removed parenthetical remarks in column names
+## Removed spaces in column names
+## Fixed the spelling of Consolidated in that column name
 
 import pandas as pd
 
@@ -12,10 +16,10 @@ FIPS_COUNTY_OUTPUT_FILE = "fips2county.tsv"
 
 # Open source files from US Census.
 
-path = "~/Desktop/COVID Programming/US Census/state-geocodes-v2017.tsv"
+path = "~/Desktop/COVID Programming/US Census/state-geocodes-v2021.tsv"
 StateDF = pd.read_csv(path, sep='\t', header='infer', dtype=str, encoding='latin-1')
 
-path = "~/Desktop/COVID Programming/US Census/all-geocodes-v2017.tsv"
+path = "~/Desktop/COVID Programming/US Census/all-geocodes-v2021.tsv"
 CountyDF = pd.read_csv(path, sep='\t', header='infer', dtype=str, encoding='latin-1')
 
 # Get rid of states that are not really states and counties that are not counties.

@@ -71,6 +71,8 @@ StateFIPS	CountyFIPS_3	CountyName	StateName	CountyFIPS	StateAbbr	STATE_COUNTY
 02	020	Anchorage Municipality	Alaska	02020	AK	AK | ANCHORAGE MUNICIPALITY
 02	050	Bethel Census Area	Alaska	02050	AK	AK | BETHEL CENSUS AREA
 02	060	Bristol Bay Borough	Alaska	02060	AK	AK | BRISTOL BAY BOROUGH
+02	063	Chugach Census Area	Alaska	02063	AK	AK | CHUGACH CENSUS AREA
+02	066	Copper River Census Area	Alaska	02066	AK	AK | COPPER RIVER CENSUS AREA
 02	068	Denali Borough	Alaska	02068	AK	AK | DENALI BOROUGH
 02	070	Dillingham Census Area	Alaska	02070	AK	AK | DILLINGHAM CENSUS AREA
 02	090	Fairbanks North Star Borough	Alaska	02090	AK	AK | FAIRBANKS NORTH STAR BOROUGH
@@ -91,7 +93,6 @@ StateFIPS	CountyFIPS_3	CountyName	StateName	CountyFIPS	StateAbbr	STATE_COUNTY
 02	220	Sitka City and Borough	Alaska	02220	AK	AK | SITKA CITY AND BOROUGH
 02	230	Skagway Municipality	Alaska	02230	AK	AK | SKAGWAY MUNICIPALITY
 02	240	Southeast Fairbanks Census Area	Alaska	02240	AK	AK | SOUTHEAST FAIRBANKS CENSUS AREA
-02	261	Valdez-Cordova Census Area	Alaska	02261	AK	AK | VALDEZ-CORDOVA CENSUS AREA
 02	275	Wrangell City and Borough	Alaska	02275	AK	AK | WRANGELL CITY AND BOROUGH
 02	282	Yakutat City and Borough	Alaska	02282	AK	AK | YAKUTAT CITY AND BOROUGH
 02	290	Yukon-Koyukuk Census Area	Alaska	02290	AK	AK | YUKON-KOYUKUK CENSUS AREA
