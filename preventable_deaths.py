@@ -11,8 +11,8 @@ COVID_ACT_NOW_DOWNLOAD = "https://api.covidactnow.org/v2/counties.timeseries.csv
 COVID_ACT_NOW_LOCAL = "/Users/chuck/Desktop/COVID Programming/Covid Act Now/counties.timeseries.csv"
 
 START_DATE = "20210415"  
-END_DATE = "20220925"
-PREVENTABLE_PORTION = 0.6611  # from CDC data and my spreadsheet, for this time period
+END_DATE = "20221214"
+PREVENTABLE_PORTION = 0.6952  # from CDC data and my spreadsheet, for this time period
 
 CHART_DATA = "preventable_by_county.tsv"
 
@@ -47,8 +47,8 @@ MapDF["deaths"] = (MapDF["end_deaths"] - MapDF["start_deaths"]).astype(int)
 MapDF.loc[MapDF["deaths"] < 0, "deaths"] = 0
 MapDF["preventable_est"] = (MapDF["deaths"] * PREVENTABLE_PORTION).round(0).astype(int)
 
-#print(MapDF["deaths"].sum())  # sanity check, compare to spreadsheet
-#print(MapDF["preventable_est"].sum())
+print(MapDF["deaths"].sum())  # sanity check, compare to spreadsheet
+print(MapDF["preventable_est"].sum())
 
 # Write out the chart data file. 
 
