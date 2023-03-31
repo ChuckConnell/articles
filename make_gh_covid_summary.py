@@ -1,45 +1,42 @@
 
-# Computes some basic statistics from the Global.health covid dataset, then puts them in a 
-# spreadsheet for easy scanning. 
+# Computes some basic statistics from the Global.health covid dataset, and
+# output to a file that is a spreadsheet and input to mapping.
 
-# The spreadsheet is a sanity check on the g.h covid data. For each country: number of case/list rows,
-# number of various case outcomes, date of latest case in file. 
-
-# Chuck Connell, November 2022
+# Chuck Connell
 
 import os
 import fnmatch
 import pandas as pd 
 
-# 1 means to read all the input data. Set to 100 or 1000 for faster close approximations. 
-# Just make sure to multiply results by this number.
-
-SAMPLE_SKIP = 1
-
-# Directory that holds all the g.h CSV country files.  (input)
-
-GH_COUNTRY_DIR = "/Users/chuck/Desktop/COVID Programming/Global.Health/gh_2023-03-20/country/"
-
-# The spreadsheet file we create. (output)
-
+WHO_COVID_FILE = "https://covid19.who.int/WHO-COVID-19-global-data.csv"
+GH_COUNTRY_DIR = "/Users/chuck/Desktop/COVID Programming/Global.Health/gh_2023-03-30/country/"
 GH_SUMMARY_FILE = "gh_summary.tsv"
 
-#  EXECUTABLE CODE
+# Tell user what set of G.h files we are looking at. 
+# We could just go to their API and get the latest, but it seems useful to analyze a chosen set.
 
-# Show the skip count, if any.
+print ("\nWorking in directory: " + GH_COUNTRY_DIR)
 
-print ("\nSkip count: " + str(SAMPLE_SKIP))
+# Get WHO data about cases and deaths per country. 
+# Throw out colummns we don't need. Clarify some field naming. Keep just the latest data.
 
-# Get all the file objects in the input directory.
+who_DF = pd.read_csv(WHO_COVID_FILE, sep=',', header='infer', dtype=str, nrows=1000)
+#who_DF = pd.read_csv(WHO_COVID_FILE, sep=',', header='infer', dtype=str)
 
-files = os.scandir(GH_COUNTRY_DIR)
+who_DF = who_DF[["Date_reported", "Country_code", "Cumulative_cases", "Cumulative_deaths"]] 
+who_DF = who_DF.rename({"Date_reported":"who_Date_reported", "Cumulative_cases":"who_Cumulative_cases", "Cumulative_deaths":"who_Cumulative_deaths"}, axis='columns')
+
+latest_who = who_DF["who_Date_reported"].max()
+who_DF = who_DF.loc[who_DF["who_Date_reported"] == latest_who]
 
 # Make a dataframe that will hold the output.
 
-summary_DF = pd.DataFrame(data=None, dtype=str, columns=["file", "latest_case", "rows", "hospital_yes", "icu_yes", "outcome_admit", "outcome_icu", "outcome_death"])
+summary_DF = pd.DataFrame(data=None, dtype=str, columns=["country", "gh_latest_case", "gh_cases", "gh_hospital_yes", "gh_icu_yes", "gh_outcome_admit", "gh_outcome_icu", "gh_outcome_death"])
 
 # Loop over all the files in the input directory.
  
+files = os.scandir(GH_COUNTRY_DIR)
+
 for f in files:
 
     # Throw out files we don't want.
@@ -47,18 +44,21 @@ for f in files:
     if not (f.is_file()): continue
     if not (fnmatch.fnmatch(f, "*.csv")): continue
 
-    # Get  and show name of this file.
+    # Get the filename and country.
     
-    print ("\nWorking on: " + f.name)
-    GH_PATH = GH_COUNTRY_DIR + f.name
+    gh_path = GH_COUNTRY_DIR + f.name
+    fname, fext = os.path.splitext(f.name)
+    country = fname.upper()
+    print ("\nWorking on: " + country)
 
     # Find the number of rows and last date.
     
-    gh_DF = pd.read_csv(GH_PATH, sep=',', header=0, dtype=str, skiprows=(lambda i : i % SAMPLE_SKIP != 0))
-    rows = str(gh_DF.shape[0])
-    latest = str(gh_DF["events.confirmed.date"].max())
+    gh_DF = pd.read_csv(gh_path, sep=',', header='infer', dtype=str, nrows=1000)
+    #gh_DF = pd.read_csv(gh_path, sep=',', header='infer', dtype=str)
+    gh_rows = str(gh_DF.shape[0])
+    gh_latest = str(gh_DF["events.confirmed.date"].max())
 
-    # Lowercase the fields are care about, just to prevent upper/lower issues
+    # Lowercase the fields we care about, just to prevent upper/lower issues
 
     gh_DF["events.outcome.value"] = gh_DF["events.outcome.value"].str.lower()
     gh_DF["events.hospitalAdmission.value"] = gh_DF["events.hospitalAdmission.value"].str.lower()
@@ -81,11 +81,20 @@ for f in files:
     
     # Append info for this file to the overall output spreadsheet.
     
-    summary_DF = summary_DF.append({"file":f.name, "latest_case":latest, "rows":rows, "hospital_yes":hospital_yes, "icu_yes":icu_yes, "outcome_admit":outcome_admit, "outcome_icu":outcome_icu, "outcome_death":outcome_death}, ignore_index=True)
+    summary_DF = summary_DF.append({"country":country, "gh_latest_case":gh_latest, "gh_cases":gh_rows, "gh_hospital_yes":hospital_yes, "gh_icu_yes":icu_yes, "gh_outcome_admit":outcome_admit, "gh_outcome_icu":outcome_icu, "gh_outcome_death":outcome_death}, ignore_index=True)
     
 # Done with file loop. Close the file list.
 
 files.close()
+
+# Join the G.h data with the WHO data.
+
+summary_DF = summary_DF.merge(who_DF, how='left', left_on="country", right_on = "Country_code")
+summary_DF = summary_DF.drop(columns=["Country_code"])
+
+# Calc some columns based on the G.h data and other data for the countries.
+
+# TODO  Cumulative_cases, Cumulative_deaths
 
 # Write the spreadsheet.
 
