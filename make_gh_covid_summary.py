@@ -1,6 +1,6 @@
 
 # Computes some basic statistics from the Global.health covid dataset, and
-# output to a file that is a spreadsheet and input to mapping.
+# write a file that is both a spreadsheet and input to mapping.
 
 # Chuck Connell
 
@@ -10,7 +10,7 @@ import pandas as pd
 import datetime as dt
 
 WHO_COVID_FILE = "https://covid19.who.int/WHO-COVID-19-global-data.csv"
-GH_COUNTRY_DIR = "/Users/chuck/Desktop/COVID Programming/Global.Health/gh_2023-03-30/country_test/"
+GH_COUNTRY_DIR = "/Users/chuck/Desktop/COVID Programming/Global.Health/gh_2023-03-30/country/"
 GH_SUMMARY_FILE = "gh_summary.tsv"
 
 # Tell user what set of G.h files we are looking at. 
@@ -33,7 +33,6 @@ who_DF = who_DF.loc[who_DF["who_Date_reported"] == latest_who]
 # Make a dataframe that will hold the output.
 
 summary_DF = pd.DataFrame()
-#summary_DF = pd.DataFrame(data=None, dtype=str, columns=["country", "gh_latest_case", "gh_cases", "gh_hospital_yes", "gh_icu_yes", "gh_outcome_admit", "gh_outcome_icu", "gh_outcome_death"])
 
 # Loop over all the files in the input directory.
  
@@ -82,11 +81,8 @@ for f in files:
     hospital_yes = hospitals.get("yes", 0)
     icu_yes = icus.get("yes", 0)
     
-    # Append info for this file to the overall output spreadsheet.
-    #summary_DF = summary_DF.append({"country":country, "gh_latest_case":gh_latest, "gh_cases":gh_rows, "gh_hospital_yes":hospital_yes, "gh_icu_yes":icu_yes, "gh_outcome_admit":outcome_admit, "gh_outcome_icu":outcome_icu, "gh_outcome_death":outcome_death}, ignore_index=True)
+    # Add info for this file to the overall output spreadsheet.
 
-    # TODO change this to concat([df1, df2])
-    # this_row_DF = pd.DataFrame({'a': [1, 2], 'b': [3, 4], 'c': [5, 6]})
     this_country_DF = pd.DataFrame({"country":[country], "gh_latest_case":[gh_latest], "gh_cases":[gh_rows], "gh_hospital_yes":[hospital_yes], "gh_icu_yes":[icu_yes], "gh_outcome_admit":[outcome_admit], "gh_outcome_icu":[outcome_icu], "gh_outcome_death":[outcome_death]})
     summary_DF = pd.concat([summary_DF, this_country_DF])
     
@@ -121,6 +117,10 @@ summary_DF["gh_mortality"] = ((summary_DF["gh_outcome_death"] / summary_DF["gh_c
 
 today = dt.date.today()
 summary_DF["gh_data_age"] = (today - summary_DF["gh_latest_case"].dt.date).dt.days
+
+# Createa column of "age category" which helps with color coding the map.
+
+#who_DF = who_DF.loc[who_DF["who_Date_reported"] == latest_who]
 
 # Write the spreadsheet.
 
