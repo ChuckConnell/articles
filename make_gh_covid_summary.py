@@ -10,11 +10,12 @@ import pandas as pd
 import datetime as dt
 
 WHO_COVID_FILE = "https://covid19.who.int/WHO-COVID-19-global-data.csv"
-GH_COUNTRY_DIR = "/Users/chuck/Desktop/COVID Programming/Global.Health/gh_2023-03-30/country/"
+GH_COUNTRY_DIR = "/Users/chuck/Desktop/COVID Programming/Global.Health/gh_2023-04-04/country/"
 GH_SUMMARY_FILE = "gh_summary.tsv"
 
 # Tell user what set of G.h files we are looking at. 
-# We could just go to their API and get the latest, but it seems useful to analyze a chosen set.
+# For now, this must be a manual download because the G.h API only supports "one country at a time". We want all the countries, in separate files. 
+# The G.h CSV files are named with each country's ISO-2 country code.
 
 print ("\nWorking in directory: " + GH_COUNTRY_DIR)
 
@@ -43,13 +44,14 @@ for f in files:
     # Throw out files we don't want.
     
     if not (f.is_file()): continue
-    if not (fnmatch.fnmatch(f, "*.csv")): continue
+    if not (fnmatch.fnmatch(f, "*.gz")): continue
 
     # Get the filename and country.
     
-    gh_path = GH_COUNTRY_DIR + f.name
-    fname, fext = os.path.splitext(f.name)
-    country = fname.upper()
+    gh_path = GH_COUNTRY_DIR + f.name   # each is a *.gz file
+    fname, fext = os.path.splitext(f.name) # find *.csv within gz
+    country, fext = os.path.splitext(fname) # strip ".csv" to get ISO country code
+    country = country.upper()  
     print ("\nWorking on: " + country)
 
     # Find the number of rows and last date.
@@ -83,7 +85,7 @@ for f in files:
     
     # Add info for this file to the overall output spreadsheet.
 
-    this_country_DF = pd.DataFrame({"country":[country], "gh_latest_case":[gh_latest], "gh_cases":[gh_rows], "gh_hospital_yes":[hospital_yes], "gh_icu_yes":[icu_yes], "gh_outcome_admit":[outcome_admit], "gh_outcome_icu":[outcome_icu], "gh_outcome_death":[outcome_death]})
+    this_country_DF = pd.DataFrame({"country":[country], "latest":[gh_latest], "cases":[gh_rows], "hospital_yes":[hospital_yes], "icu_yes":[icu_yes], "outcome_admit":[outcome_admit], "outcome_icu":[outcome_icu], "outcome_death":[outcome_death]})
     summary_DF = pd.concat([summary_DF, this_country_DF])
     
 # Done with file loop. Close the file list.
@@ -97,34 +99,38 @@ summary_DF = summary_DF.drop(columns=["Country_code"])
 
 # Calc the percent of WHO cases that G.h has for each country
 
-summary_DF["gh_cases"] = summary_DF["gh_cases"].fillna(0).astype(int)
+summary_DF["cases"] = summary_DF["cases"].fillna(0).astype(int)
 summary_DF["who_Cumulative_cases"] = summary_DF["who_Cumulative_cases"].fillna(0).astype(int)
 
-summary_DF["gh_v_who_cases"] = ((summary_DF["gh_cases"] / summary_DF["who_Cumulative_cases"]) * 100).round()
+summary_DF["case_pct"] = ((summary_DF["cases"] / summary_DF["who_Cumulative_cases"]) * 100).round()
 
 # Calc pct of WHO deaths that G.h has for each country.
 
-summary_DF["gh_outcome_death"] = summary_DF["gh_outcome_death"].fillna(0).astype(int)
+summary_DF["outcome_death"] = summary_DF["outcome_death"].fillna(0).astype(int)
 summary_DF["who_Cumulative_deaths"] = summary_DF["who_Cumulative_deaths"].fillna(0).astype(int)
 
-summary_DF["gh_v_who_deaths"] = ((summary_DF["gh_outcome_death"] / summary_DF["who_Cumulative_deaths"]) * 100).round()
+summary_DF["death_pct"] = ((summary_DF["outcome_death"] / summary_DF["who_Cumulative_deaths"]) * 100).round()
 
 # Calc overall mortality percent from G.h cases for each country.
 
-summary_DF["gh_mortality"] = ((summary_DF["gh_outcome_death"] / summary_DF["gh_cases"]) * 100).round(1)
+summary_DF["mortality"] = ((summary_DF["outcome_death"] / summary_DF["cases"]) * 100).round(1)
 
 # How old is the latest G.h data for each country?
 
 today = dt.date.today()
-summary_DF["gh_data_age"] = (today - summary_DF["gh_latest_case"].dt.date).dt.days
+summary_DF["data_age"] = (today - summary_DF["latest"].dt.date).dt.days
 
-# Createa column of "age category" which helps with color coding the map.
+# Create a column of "age category" which helps with color coding the map.
 
-#who_DF = who_DF.loc[who_DF["who_Date_reported"] == latest_who]
+summary_DF["data_cat"] = "1y+"
+summary_DF.loc[summary_DF["data_age"] < 360, "data_cat"] = "<360d"
+summary_DF.loc[summary_DF["data_age"] < 180, "data_cat"] = "<180d"
+summary_DF.loc[summary_DF["data_age"] < 90, "data_cat"] = "<90d"
+summary_DF.loc[summary_DF["data_age"] < 30, "data_cat"] = "<30d"
+summary_DF.loc[summary_DF["data_age"] < 15, "data_cat"] = "<15d"
 
-# Write the spreadsheet.
+# Write the spreadsheet / map file.
 
 print ("\nWriting summary data to " + GH_SUMMARY_FILE)
 summary_DF.to_csv(GH_SUMMARY_FILE, encoding='utf-8', sep='\t', index=False)
-
 
