@@ -1,7 +1,7 @@
 
 # Make a map of preventable COVID deaths by county.
 
-# Chuck Connell, fall 2022
+# Chuck Connell, fall 2022, updated spring 2023
 
 import pandas as pd 
 from urllib import request
@@ -11,8 +11,8 @@ COVID_ACT_NOW_DOWNLOAD = "https://api.covidactnow.org/v2/counties.timeseries.csv
 COVID_ACT_NOW_LOCAL = "/Users/chuck/Desktop/COVID Programming/Covid Act Now/counties.timeseries.csv"
 
 START_DATE = "20210415"  
-END_DATE = "20221214"
-PREVENTABLE_PORTION = 0.6952  # from CDC data and my spreadsheet, for this time period
+END_DATE = "20230315"
+PREVENTABLE_PORTION = 0.646  # from CDC data and my spreadsheet, for this time period
 
 CHART_DATA = "preventable_by_county.tsv"
 
@@ -24,7 +24,6 @@ CovidDF = pd.read_csv(COVID_ACT_NOW_LOCAL, sep=',', header='infer', dtype=str)
 # Tweak fields as needed.
 
 CovidDF = CovidDF[["date", "fips", "actuals.deaths"]]  # throw out many fields we don't need
-
 CovidDF["date"] = pd.to_datetime(CovidDF["date"], errors='coerce')
 CovidDF["actuals.deaths"] = pd.to_numeric(CovidDF["actuals.deaths"], errors='coerce').fillna(0)
 
@@ -47,8 +46,8 @@ MapDF["deaths"] = (MapDF["end_deaths"] - MapDF["start_deaths"]).astype(int)
 MapDF.loc[MapDF["deaths"] < 0, "deaths"] = 0
 MapDF["preventable_est"] = (MapDF["deaths"] * PREVENTABLE_PORTION).round(0).astype(int)
 
-print(MapDF["deaths"].sum())  # sanity check, compare to spreadsheet
-print(MapDF["preventable_est"].sum())
+#print(MapDF["deaths"].sum())  # sanity check, compare to spreadsheet
+#print(MapDF["preventable_est"].sum())
 
 # Write out the chart data file. 
 
