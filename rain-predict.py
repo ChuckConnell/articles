@@ -44,11 +44,11 @@ stationDF = stationDF.rename({"DlySum":"DlySumToday"}, axis='columns')  # to dis
 stationDF["DlySumToday"] = stationDF["DlySumToday"].astype(int) / 100   # convert totals from hundreths to inches
 stationDF["DATE"] = pd.to_datetime(stationDF["DATE"], errors='coerce')  # put in true date format
 
-# Grab a snapshot for a self-join later. 
+# Grab a snapshot for a self-join later. Adjust fields names to avoid confusion after the join.
 
 stationCopyDF = stationDF
 stationCopyDF = stationCopyDF[["STATION","DATE","DlySumToday"]]  # keep just what we need
-stationCopyDF = stationCopyDF.rename({"DlySumToday":"DlySumOther", "DATE":"DATEother"}, axis='columns')  # to distinquish info after the self join
+stationCopyDF = stationCopyDF.rename({"DlySumToday":"DlySumOther", "DATE":"DATEother"}, axis='columns')  
 
 # Add in some other dates, for which we will pull in rainfall.
 
@@ -57,12 +57,23 @@ stationDF["DATE_minus2"] = stationDF["DATE"] - pd.offsets.Day(2)
 stationDF["DATE_minus1"] = stationDF["DATE"] - pd.offsets.Day(1)
 stationDF["DATE_plus1"] = stationDF["DATE"] + pd.offsets.Day(1)
 
-# Join some other rainfall onto base record. Adjust column names to make clear what we did.
+# Join other rainfall onto base record. Adjust column names to make clear what we did.
 
 stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus3"], right_on = ["STATION","DATEother"])
 stationDF = stationDF.rename({"DlySumOther":"DlySum3DaysAgo"}, axis='columns')  
 stationDF = stationDF.drop(columns=["DATEother"])
 
+stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus2"], right_on = ["STATION","DATEother"])
+stationDF = stationDF.rename({"DlySumOther":"DlySum2DaysAgo"}, axis='columns')  
+stationDF = stationDF.drop(columns=["DATEother"])
+
+stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus1"], right_on = ["STATION","DATEother"])
+stationDF = stationDF.rename({"DlySumOther":"DlySum1DaysAgo"}, axis='columns')  
+stationDF = stationDF.drop(columns=["DATEother"])
+
+stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_plus1"], right_on = ["STATION","DATEother"])
+stationDF = stationDF.rename({"DlySumOther":"DlySumTomorrow"}, axis='columns')  
+stationDF = stationDF.drop(columns=["DATEother"])
 
 
 
