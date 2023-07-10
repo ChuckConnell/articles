@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Does a rainy day (or sequence of rainy days) predict that it is more likely to rain the next day? 
+Or maybe it is less likely because the clouds have "used up" their rain?
+
+In other words, does rain predict rain? 
+
+Chuck Connell, summer 2023
+
+General description of daily rainfall from https://weatherins.com/rain-guidelines/
+1/10 (0.10) of an inch of rain – A light rain for 30-45 minutes, moderate rain for 10 minutes or heavy rain for 5 minutes. Small puddles would form but usually disappear after a short while.
+1/4 (0.25) of an inch of rain – A light rain for 2-3 hours, moderate rain for 30-60 minutes or heavy rain for 15 minutes. There would be many puddles on the ground and they would not disappear easily.
+1/2 (0.5) of an inch of rain – A light rain never reaches this amount, moderate rain for 1-2 hours or heavy rain for 30-45 minutes. There would be deep standing water and they would last for long periods of time.
+3/4 (0.75) of an inch of rain – A light moderate rain never reaches this amount, heavy rain lasting for 2-4 hours. There would be deep standing water for long periods of time.
+One (1.00) inch of rain – A light moderate rain never reaches this amount, heavy rain for several hours (2-5 hours). There would be deep standing water for long periods of time.
+"""
+
+#import os
+#import fnmatch
+import pandas as pd 
+#import datetime as dt
+
+HPD_DIR = "https://www.ncei.noaa.gov/data/coop-hourly-precipitation/v2/access/"
+ACADIA_ID = "USC00170100" 
+AMARILLO_ID = "USW00023047" 
+ETNA_ID = "USC00042899" 
+NO_RAIN = 0.1   # less than this is considered "no rain today"
+RAINY = 0.5     # more than this is considered "a rainy day"
+
+# Make an empty dataframe to hold combined data across stations.
+
+hpdDF = pd.DataFrame()
+
+# Get data for one station and do some basic data cleanup.
+
+station_url = HPD_DIR + ACADIA_ID +".csv"
+stationDF = pd.read_csv(station_url, sep=',', header='infer', dtype=str)
+
+stationDF = stationDF.query("DlySumQF != 'P'")    # throw out dates with a bad daily quality flag
+stationDF = stationDF[["STATION","NAME","DATE","DlySum"]]    # keep only fields we need
+stationDF = stationDF.rename({"DlySum":"DlySumToday"}, axis='columns')  # to distinquish from other days we will join in
+stationDF["DlySumToday"] = stationDF["DlySumToday"].astype(int) / 100   # convert totals from hundreths to inches
+stationDF["DATE"] = pd.to_datetime(stationDF["DATE"], errors='coerce')  # put in true date format
+
+# Grab a snapshot for a self-join later. 
+
+stationCopyDF = stationDF
+stationCopyDF = stationCopyDF[["STATION","DATE","DlySumToday"]]  # keep just what we need
+stationCopyDF = stationCopyDF.rename({"DlySumToday":"DlySumOther", "DATE":"DATEother"}, axis='columns')  # to distinquish info after the self join
+
+# Add in some other dates, for which we will pull in rainfall.
+
+stationDF["DATE_minus3"] = stationDF["DATE"] - pd.offsets.Day(3)
+stationDF["DATE_minus2"] = stationDF["DATE"] - pd.offsets.Day(2)
+stationDF["DATE_minus1"] = stationDF["DATE"] - pd.offsets.Day(1)
+stationDF["DATE_plus1"] = stationDF["DATE"] + pd.offsets.Day(1)
+
+# Join some other rainfall onto base record. Adjust column names to make clear what we did.
+
+stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus3"], right_on = ["STATION","DATEother"])
+stationDF = stationDF.rename({"DlySumOther":"DlySum3DaysAgo"}, axis='columns')  
+stationDF = stationDF.drop(columns=["DATEother"])
+
+
+
+
+
+
+
+# create dataframes for 2 days ago, 1 day ago, and 1 day ahead
+# join the lookback/lookahead data to the base data
+hpdDF = pd.concat([hpdDF, stationDF], ignore_index=True)
+
+#data_url = HPD_DIR + AMARILLO_ID +".csv"
+#temp_DF = pd.read_csv(data_url, sep=',', header='infer', dtype=str)
+#hpd_DF = pd.concat([hpd_DF, temp_DF], ignore_index=True)
+
+#data_url = HPD_DIR + ETNA_ID +".csv"
+#temp_DF = pd.read_csv(data_url, sep=',', header='infer', dtype=str)
+#hpd_DF = pd.concat([hpd_DF, temp_DF], ignore_index=True)
+
+# STATION, NAME, DATE, DlySum, DlySumQF
+
