@@ -23,9 +23,10 @@ import pandas as pd
 #import datetime as dt
 
 HPD_DIR = "https://www.ncei.noaa.gov/data/coop-hourly-precipitation/v2/access/"
-ACADIA_ID = "USC00170100" 
-AMARILLO_ID = "USW00023047" 
-ETNA_ID = "USC00042899" 
+ACADIA = "USC00170100.csv" 
+AMARILLO = "USW00023047.csv" 
+ETNA = "USC00042899.csv" 
+STATIONS = [ACADIA, AMARILLO, ETNA]
 NO_RAIN = 0.1   # less than this is considered "no rain today"
 RAINY = 0.5     # more than this is considered "a rainy day"
 
@@ -33,87 +34,64 @@ RAINY = 0.5     # more than this is considered "a rainy day"
 
 hpdDF = pd.DataFrame()
 
-# Get data for one station and do some basic data cleanup.
+# Loop over all the stations, processing and enhancing that data, then add it to an overall dataset
 
-station_url = HPD_DIR + ACADIA_ID +".csv"
-stationDF = pd.read_csv(station_url, sep=',', header='infer', dtype=str)
+for s in STATIONS:
+    
+    # Get data for one station and do some basic data cleanup.
 
-stationDF = stationDF.query("DlySumQF != 'P'")    # throw out dates with a bad daily quality flag
-stationDF = stationDF[["STATION","NAME","DATE","DlySum"]]    # keep only fields we need
-stationDF = stationDF.rename({"DlySum":"DlySumToday"}, axis='columns')  # to distinquish from other days we will join in
-stationDF["DlySumToday"] = stationDF["DlySumToday"].astype(int) / 100   # convert totals from hundreths to inches
-stationDF["DATE"] = pd.to_datetime(stationDF["DATE"], errors='coerce')  # put in true date format
+    station_url = HPD_DIR + s 
+    stationDF = pd.read_csv(station_url, sep=',', header='infer', dtype=str)
 
-# Grab a snapshot for a self-join later. Adjust fields names to avoid confusion after the join.
+    stationDF = stationDF.query("DlySumQF != 'P'")    # throw out dates with a bad daily quality flag
+    stationDF = stationDF[["STATION","NAME","DATE","DlySum"]]    # keep only fields we need
+    stationDF = stationDF.rename({"DlySum":"DlySumToday"}, axis='columns')  # to distinquish from other days we will join in
+    stationDF["DlySumToday"] = stationDF["DlySumToday"].astype(int) / 100   # convert totals from hundreths to inches
+    stationDF["DATE"] = pd.to_datetime(stationDF["DATE"], errors='coerce')  # put in true date format
 
-stationCopyDF = stationDF
-stationCopyDF = stationCopyDF[["STATION","DATE","DlySumToday"]]  # keep just what we need
-stationCopyDF = stationCopyDF.rename({"DlySumToday":"DlySumOther", "DATE":"DATEother"}, axis='columns')  
+    # Grab a snapshot for a self-join later. Adjust fields names to avoid confusion after the join.
 
-# Add in some other dates, for which we will pull in rainfall.
+    stationCopyDF = stationDF
+    stationCopyDF = stationCopyDF[["STATION","DATE","DlySumToday"]]  # keep just what we need
+    stationCopyDF = stationCopyDF.rename({"DlySumToday":"DlySumOther", "DATE":"DATEother"}, axis='columns')  
 
-stationDF["DATE_minus3"] = stationDF["DATE"] - pd.offsets.Day(3)
-stationDF["DATE_minus2"] = stationDF["DATE"] - pd.offsets.Day(2)
-stationDF["DATE_minus1"] = stationDF["DATE"] - pd.offsets.Day(1)
-stationDF["DATE_plus1"] = stationDF["DATE"] + pd.offsets.Day(1)
+    # Add in some other dates, for which we will pull in rainfall.
 
-# Join other rainfall onto base record. Adjust column names to make clear what we did.
+    stationDF["DATE_minus3"] = stationDF["DATE"] - pd.offsets.Day(3)
+    stationDF["DATE_minus2"] = stationDF["DATE"] - pd.offsets.Day(2)
+    stationDF["DATE_minus1"] = stationDF["DATE"] - pd.offsets.Day(1)
+    stationDF["DATE_plus1"] = stationDF["DATE"] + pd.offsets.Day(1)
 
-stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus3"], right_on = ["STATION","DATEother"])
-stationDF = stationDF.rename({"DlySumOther":"DlySum3DaysAgo"}, axis='columns')  
-stationDF = stationDF.drop(columns=["DATEother"])
+    # Join other rainfall onto base record. Adjust column names to make clear what we did.
 
-stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus2"], right_on = ["STATION","DATEother"])
-stationDF = stationDF.rename({"DlySumOther":"DlySum2DaysAgo"}, axis='columns')  
-stationDF = stationDF.drop(columns=["DATEother"])
+    stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus3"], right_on = ["STATION","DATEother"])
+    stationDF = stationDF.rename({"DlySumOther":"DlySum3DaysAgo"}, axis='columns')  
+    stationDF = stationDF.drop(columns=["DATEother"])
 
-stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus1"], right_on = ["STATION","DATEother"])
-stationDF = stationDF.rename({"DlySumOther":"DlySum1DayAgo"}, axis='columns')  
-stationDF = stationDF.drop(columns=["DATEother"])
+    stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus2"], right_on = ["STATION","DATEother"])
+    stationDF = stationDF.rename({"DlySumOther":"DlySum2DaysAgo"}, axis='columns')  
+    stationDF = stationDF.drop(columns=["DATEother"])
 
-stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_plus1"], right_on = ["STATION","DATEother"])
-stationDF = stationDF.rename({"DlySumOther":"DlySumTomorrow"}, axis='columns')  
-stationDF = stationDF.drop(columns=["DATEother"])
+    stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus1"], right_on = ["STATION","DATEother"])
+    stationDF = stationDF.rename({"DlySumOther":"DlySum1DayAgo"}, axis='columns')  
+    stationDF = stationDF.drop(columns=["DATEother"])
 
-# Create a column that shows (for each day) how many days it has been rainy. 
-# 1 = just today; 2 = today and yesterday; etc.
+    stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_plus1"], right_on = ["STATION","DATEother"])
+    stationDF = stationDF.rename({"DlySumOther":"DlySumTomorrow"}, axis='columns')  
+    stationDF = stationDF.drop(columns=["DATEother"])
 
-stationDF["DaysOfRain"] = 0
-stationDF.loc[(stationDF["DlySumToday"] >= RAINY), "DaysOfRain"] = 1
-stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY), 'DaysOfRain'] = 2
-stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY), 'DaysOfRain'] = 3
-stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY), 'DaysOfRain'] = 4
+    # Create a column that shows (for each day) how many days it has been rainy. 
+    # 1 = just today; 2 = today and yesterday; etc.
 
-#df.loc[(df['A'] > 10) & (df['B'] < 15)]
+    stationDF["DaysOfRain"] = 0
+    stationDF.loc[(stationDF["DlySumToday"] >= RAINY), "DaysOfRain"] = 1
+    stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY), 'DaysOfRain'] = 2
+    stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY), 'DaysOfRain'] = 3
+    stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY), 'DaysOfRain'] = 4
 
-#query_index = df.query('B > 50 & C != 900').index
-#df.iloc[my_query_index, 0] = 5000
+    # Join the lookback/lookahead data to the base data
+    
+    hpdDF = pd.concat([hpdDF, stationDF], ignore_index=True)
 
-# Below are quick examples 
-
-# Example 1 - Using loc[] with multiple conditions
-#df2=df.loc[(df['Discount'] >= 1000) & (df['Discount'] <= 2000)]
-
-# Example 2
-#df2=df.loc[(df['Discount'] >= 1200) | (df['Fee'] >= 23000 )]
-
-
-
-
-
-
-
-# create dataframes for 2 days ago, 1 day ago, and 1 day ahead
-# join the lookback/lookahead data to the base data
-hpdDF = pd.concat([hpdDF, stationDF], ignore_index=True)
-
-#data_url = HPD_DIR + AMARILLO_ID +".csv"
-#temp_DF = pd.read_csv(data_url, sep=',', header='infer', dtype=str)
-#hpd_DF = pd.concat([hpd_DF, temp_DF], ignore_index=True)
-
-#data_url = HPD_DIR + ETNA_ID +".csv"
-#temp_DF = pd.read_csv(data_url, sep=',', header='infer', dtype=str)
-#hpd_DF = pd.concat([hpd_DF, temp_DF], ignore_index=True)
-
-# STATION, NAME, DATE, DlySum, DlySumQF
-
+    # End of loop over stations
+ 
