@@ -68,12 +68,35 @@ stationDF = stationDF.rename({"DlySumOther":"DlySum2DaysAgo"}, axis='columns')
 stationDF = stationDF.drop(columns=["DATEother"])
 
 stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus1"], right_on = ["STATION","DATEother"])
-stationDF = stationDF.rename({"DlySumOther":"DlySum1DaysAgo"}, axis='columns')  
+stationDF = stationDF.rename({"DlySumOther":"DlySum1DayAgo"}, axis='columns')  
 stationDF = stationDF.drop(columns=["DATEother"])
 
 stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_plus1"], right_on = ["STATION","DATEother"])
 stationDF = stationDF.rename({"DlySumOther":"DlySumTomorrow"}, axis='columns')  
 stationDF = stationDF.drop(columns=["DATEother"])
+
+# Create a column that shows (for each day) how many days it has been rainy. 
+# 1 = just today; 2 = today and yesterday; etc.
+
+stationDF["DaysOfRain"] = 0
+stationDF.loc[(stationDF["DlySumToday"] >= RAINY), "DaysOfRain"] = 1
+stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY), 'DaysOfRain'] = 2
+stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY), 'DaysOfRain'] = 3
+stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY), 'DaysOfRain'] = 4
+
+#df.loc[(df['A'] > 10) & (df['B'] < 15)]
+
+#query_index = df.query('B > 50 & C != 900').index
+#df.iloc[my_query_index, 0] = 5000
+
+# Below are quick examples 
+
+# Example 1 - Using loc[] with multiple conditions
+#df2=df.loc[(df['Discount'] >= 1000) & (df['Discount'] <= 2000)]
+
+# Example 2
+#df2=df.loc[(df['Discount'] >= 1200) | (df['Fee'] >= 23000 )]
+
 
 
 
