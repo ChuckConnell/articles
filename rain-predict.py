@@ -57,12 +57,13 @@ for f in STATION_FILES:
 
     # Some data cleanup.
 
-    stationDF = stationDF.query("DlySumQF != 'P'")    # throw out dates with a bad daily quality flag
+    stationDF = stationDF.query("DlySumQF != 'P'")    # throw out dates with a bad data quality flag
     stationDF = stationDF[["STATION","NAME","DATE","DlySum"]]    # keep only fields we need
     stationDF = stationDF.rename({"DlySum":"DlySumToday"}, axis='columns')  # to distinquish from other days we will join in
     stationDF["DlySumToday"] = stationDF["DlySumToday"].astype(int) / 100   # convert totals from hundreths to inches
     stationDF["DATE"] = pd.to_datetime(stationDF["DATE"], errors='coerce')  # put in true date format
     stationDF = stationDF.query("DATE >= " + CUTOFF_DATE)   # only take recent days
+    stationDF = stationDF.query("DlySumToday >= 0")    # throw out dates with negative rainfall (yes there are some).
 
     # Grab a snapshot for a self-join later. Adjust fields names to avoid confusion after the join.
 
