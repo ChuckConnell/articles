@@ -133,6 +133,15 @@ STATION_FILESx = ["USC00012675.csv"
 ,"USC00510300.csv"
 ]
 
+# Even smaller version for testing
+
+STATION_FILESxx = ["USC00012675.csv"
+,"USC00013043.csv"
+,"USC00013519.csv"
+,"USC00031457.csv"
+,"USC00032148.csv"
+,"USC00032978.csv"
+]
 
 
 

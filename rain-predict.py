@@ -28,8 +28,7 @@ import pandas as pd
 
 # Include files
 
-from rain_helpers import STATION_FILESx  # smaller test set
-#from rain_helpers import STATION_FILES
+from rain_helpers import STATION_FILES, STATION_FILESx, STATION_FILESxx
 
 # Constants
 
@@ -37,12 +36,13 @@ HPD_CLOUD_DIR = "https://www.ncei.noaa.gov/data/coop-hourly-precipitation/v2/acc
 HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/"
 DRY = 0.05  # less than this is considered "a dry day"
 RAINY = 0.5     # more than this is considered "a rainy day"
-CUTOFF_DATE = "20000101"  # Only look at recent data in case climate change has affected things. This is the format needed by pandas query().
+START_DATE = "20000101"  # This is the format needed by pandas query().
+END_DATE = "20500101"  
 
 # Tell user key settings.
 
-print ("\nTaking data after " + str(pd.to_datetime(CUTOFF_DATE)) + ".")
-print ("\nUsing daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(DRY) + " inches as a 'dry' day.\n")
+print ("\nTaking data after " + str(pd.to_datetime(START_DATE)) + " and before " + str(pd.to_datetime(END_DATE)) + ".")
+print ("\nUsing daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(DRY) + " inches as a 'dry' day.")
 
 # Make an empty dataframe to hold combined data across stations.
 
@@ -50,13 +50,14 @@ hpdDF = pd.DataFrame()
 
 # Loop over all the stations, processing and enhancing that data, then add it to an overall dataset
 
-for f in STATION_FILESx:
+for f in STATION_FILESxx:
     
     # Get data for one station and report to user.
     
-    station_url = HPD_LOCAL_DIR + f 
+    station_url = HPD_LOCAL_DIR + f   # Can read from local or NOAA cloud, just by changing the DIR
     stationDF = pd.read_csv(station_url, sep=',', header='infer', dtype=str)
-    print ("Working on Station ID " + stationDF["STATION"].iloc[1] + " at location " + stationDF["NAME"].iloc[1] + ", with " + str(len(stationDF)) + " rows.")
+    station_raw_rows = len(stationDF)
+    print ("\nWorking on Station ID " + stationDF["STATION"].iloc[1] + " at location " + stationDF["NAME"].iloc[1] + "." )
 
     # Some data cleanup.
 
@@ -65,7 +66,8 @@ for f in STATION_FILESx:
     stationDF = stationDF.rename({"DlySum":"DlySumToday"}, axis='columns')  # to distinquish from other days we will join in
     stationDF["DlySumToday"] = stationDF["DlySumToday"].astype(int) / 100   # convert totals from hundreths to inches
     stationDF["DATE"] = pd.to_datetime(stationDF["DATE"], errors='coerce')  # put in true date format
-    stationDF = stationDF.query("DATE >= " + CUTOFF_DATE)   # only take recent days
+    stationDF = stationDF.query("DATE >= " + START_DATE)  
+    stationDF = stationDF.query("DATE <= " + END_DATE) 
     stationDF = stationDF.query("DlySumToday >= 0")    # throw out dates with negative rainfall (yes there are some).
 
     # Grab a snapshot for a self-join later. Adjust fields names to avoid confusion after the join.
@@ -145,7 +147,11 @@ for f in STATION_FILESx:
     stationDF["DryTomorrow"] = ""   
     stationDF.loc[(stationDF["DlySumTomorrow"] <= DRY), "DryTomorrow"] = "Y"
 
-
+    # Report data facts for this station.
+    
+    station_final_rows = len(stationDF)
+    print ("Raw rows in this station = " + str(station_raw_rows) + ", final (curated) rows = " + str(station_final_rows) + ".")
+    
     # Join this station to all stations
     
     hpdDF = pd.concat([hpdDF, stationDF], ignore_index=True)
@@ -155,25 +161,20 @@ for f in STATION_FILESx:
 # Show some overall stats
 
 TotalRows = len(hpdDF)
-print ("\nTotal data points (rows) for all stations and days = " + str(TotalRows)) 
+print ("\nTotal curated data points (rows) for all stations and days = " + str(TotalRows)) 
 
-print ("\nAverage rain per day = " + str(round(hpdDF["DlySumToday"].mean(), 2)))
-
-TotalDry = len(hpdDF[hpdDF['DlySumToday'] <= DRY])
-PctDry = round((TotalDry / TotalRows * 100), 1)
-print ("\nPercent of days that are dry = " + str(PctDry))
+print ("\nAverage rain per day overall = " + str(round(hpdDF["DlySumToday"].mean(), 2)) + " inches")
 
 TotalRainy = len(hpdDF[hpdDF['DlySumToday'] >= RAINY])
 PctRainy = round((TotalRainy / TotalRows * 100), 1)
-print ("\nPercent of days that are rainy = " + str(PctRainy))
+print ("\nFraction of days overall that are rainy = " + str(PctRainy) + "%")
 
-#TotalRainy = len(hpdDF[hpdDF['DlySumToday'] >= RAINY])
-#print ("\nFraction of days that are rainy = " + str(round(TotalDry / TotalRows * 100), 2))
+TotalDry = len(hpdDF[hpdDF['DlySumToday'] <= DRY])
+PctDry = round((TotalDry / TotalRows * 100), 1)
+print ("\nFraction of days overall that are dry = " + str(PctDry) + "%")
 
+# Make subsets for each number of rainy and dry days, 
 
-# Make subsets for each number of rainy and DRY days, and report average rain the next day
-
-#Rainy0DaysDF = hpdDF.query("DaysOfRain == 0")
 Rainy1DayDF = hpdDF.query("DaysOfRain == 1")
 Rainy2DaysDF = hpdDF.query("DaysOfRain == 2")
 Rainy3DaysDF = hpdDF.query("DaysOfRain == 3")
@@ -182,16 +183,6 @@ Rainy5DaysDF = hpdDF.query("DaysOfRain == 5")
 Rainy6DaysDF = hpdDF.query("DaysOfRain == 6")
 Rainy7DaysDF = hpdDF.query("DaysOfRain == 7")
 
-#print ("\nFound " + str(Rainy0DaysDF.shape[0]) + " not-rainy days.")
-print ("\nFound " + str(len(Rainy1DayDF)) + " runs of 1 rainy day.")
-print ("Found " + str(len(Rainy2DaysDF)) + " runs of 2 rainy days.")
-print ("Found " + str(len(Rainy3DaysDF)) + " runs of 3 rainy days.")
-print ("Found " + str(len(Rainy4DaysDF)) + " runs of 4 rainy days.")
-print ("Found " + str(len(Rainy5DaysDF)) + " runs of 5 rainy days.")
-print ("Found " + str(len(Rainy6DaysDF)) + " runs of 6 rainy days.")
-print ("Found " + str(len(Rainy7DaysDF)) + " runs of 7 rainy days.")
-
-#Dry0DaysDF = hpdDF.query("DaysOfDry == 0")
 Dry1DayDF = hpdDF.query("DaysOfDry == 1")
 Dry2DaysDF = hpdDF.query("DaysOfDry == 2")
 Dry3DaysDF = hpdDF.query("DaysOfDry == 3")
@@ -200,18 +191,40 @@ Dry5DaysDF = hpdDF.query("DaysOfDry == 5")
 Dry6DaysDF = hpdDF.query("DaysOfDry == 6")
 Dry7DaysDF = hpdDF.query("DaysOfDry == 7")
 
-#print ("\nFound " + str(len(Dry0DaysDF)) + " not-dry days.")
-print ("\nFound " + str(len(Dry1DayDF)) + " runs of 1 dry day.")
-print ("Found " + str(len(Dry2DaysDF)) + " runs of 2 dry days.")
-print ("Found " + str(len(Dry3DaysDF)) + " runs of 3 dry days.")
-print ("Found " + str(len(Dry4DaysDF)) + " runs of 4 dry days.")
-print ("Found " + str(len(Dry5DaysDF)) + " runs of 5 dry days.")
-print ("Found " + str(len(Dry6DaysDF)) + " runs of 6 dry days.")
-print ("Found " + str(len(Dry7DaysDF)) + " runs of 7 dry days.")
+# Report the runs of rainy/dry days found.
 
-# Calc average rainfall on the day after a run of dry or rainy days of varying lengths.
+Rainy1DayCount = len(Rainy1DayDF)
+print ("\nFound " + str(Rainy1DayCount) + " runs of 1 rainy day.")
+Rainy2DaysCount = len(Rainy2DaysDF)
+print ("Found " + str(Rainy2DaysCount) + " runs of 2 rainy days.")
+Rainy3DaysCount = len(Rainy3DaysDF)
+print ("Found " + str(Rainy3DaysCount) + " runs of 3 rainy days.")
+Rainy4DaysCount = len(Rainy4DaysDF)
+print ("Found " + str(Rainy4DaysCount) + " runs of 4 rainy days.")
+Rainy5DaysCount = len(Rainy5DaysDF)
+print ("Found " + str(Rainy5DaysCount) + " runs of 5 rainy days.")
+Rainy6DaysCount = len(Rainy6DaysDF)
+print ("Found " + str(Rainy6DaysCount) + " runs of 6 rainy days.")
+Rainy7DaysCount = len(Rainy7DaysDF)
+print ("Found " + str(Rainy7DaysCount) + " runs of 7 rainy days.")
 
-#print ("\nAverage rain after 0 days of rain... " + str(round(Rainy0DaysDF["DlySumTomorrow"].mean(), 2)))
+Dry1DayCount = len(Dry1DayDF)
+print ("\nFound " + str(Dry1DayCount) + " runs of 1 dry day.")
+Dry2DaysCount = len(Dry2DaysDF)
+print ("Found " + str(Dry2DaysCount) + " runs of 2 dry days.")
+Dry3DaysCount = len(Dry3DaysDF)
+print ("Found " + str(Dry3DaysCount) + " runs of 3 dry days.")
+Dry4DaysCount = len(Dry4DaysDF)
+print ("Found " + str(Dry4DaysCount) + " runs of 4 dry days.")
+Dry5DaysCount = len(Dry5DaysDF)
+print ("Found " + str(Dry5DaysCount) + " runs of 5 dry days.")
+Dry6DaysCount = len(Dry6DaysDF)
+print ("Found " + str(Dry6DaysCount) + " runs of 6 dry days.")
+Dry7DaysCount = len(Dry7DaysDF)
+print ("Found " + str(Dry7DaysCount) + " runs of 7 dry days.")
+
+# Find average rain on the day after each run.
+
 print ("\nAverage rainfall after 1 day of rain... " + str(round(Rainy1DayDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 2 days of rain... " + str(round(Rainy2DaysDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 3 days of rain... " + str(round(Rainy3DaysDF["DlySumTomorrow"].mean(), 2)))
@@ -220,7 +233,6 @@ print ("Average rainfall after 5 days of rain... " + str(round(Rainy5DaysDF["Dly
 print ("Average rainfall after 6 days of rain... " + str(round(Rainy6DaysDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 7 days of rain... " + str(round(Rainy7DaysDF["DlySumTomorrow"].mean(), 2)))
 
-#print ("\nAverage rain after 0 days of dry... " + str(round(Dry0DaysDF["DlySumTomorrow"].mean(), 2)))
 print ("\nAverage rainfall after 1 day of dry... " + str(round(Dry1DayDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 2 days of dry... " + str(round(Dry2DaysDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 3 days of dry... " + str(round(Dry3DaysDF["DlySumTomorrow"].mean(), 2)))
@@ -229,6 +241,7 @@ print ("Average rainfall after 5 days of dry... " + str(round(Dry5DaysDF["DlySum
 print ("Average rainfall after 6 days of dry... " + str(round(Dry6DaysDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 7 days of dry... " + str(round(Dry7DaysDF["DlySumTomorrow"].mean(), 2)))
 
-# TODO Calc the chance of a rainy day after string of rainy days. Same for dry days.
+# Find chance of rainy/dry day after each run.
+# TODO
 
 
