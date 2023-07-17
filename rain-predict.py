@@ -17,6 +17,8 @@ General description of daily rainfall from https://weatherins.com/rain-guideline
 One (1.00) inch of rain – A light moderate rain never reaches this amount, heavy rain for several hours (2-5 hours). There would be deep standing water for long periods of time.
 """
 
+# TODO Use len not shape
+
 # Libraries
 
 #import os
@@ -26,20 +28,21 @@ import pandas as pd
 
 # Include files
 
-from rain_helpers import STATION_FILES
+from rain_helpers import STATION_FILESx  # smaller test set
+#from rain_helpers import STATION_FILES
 
 # Constants
 
 HPD_CLOUD_DIR = "https://www.ncei.noaa.gov/data/coop-hourly-precipitation/v2/access/"  # Hourly Precipitation Data (HPD)
 HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/"
-SUNNY = 0.05  # less than this is considered "a sunny day"
+DRY = 0.05  # less than this is considered "a dry day"
 RAINY = 0.5     # more than this is considered "a rainy day"
 CUTOFF_DATE = "20000101"  # Only look at recent data in case climate change has affected things. This is the format needed by pandas query().
 
 # Tell user key settings.
 
 print ("\nTaking data after " + str(pd.to_datetime(CUTOFF_DATE)) + ".")
-print ("\nUsing daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(SUNNY) + " inches as a 'sunny' day.\n")
+print ("\nUsing daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(DRY) + " inches as a 'dry' day.\n")
 
 # Make an empty dataframe to hold combined data across stations.
 
@@ -47,13 +50,13 @@ hpdDF = pd.DataFrame()
 
 # Loop over all the stations, processing and enhancing that data, then add it to an overall dataset
 
-for f in STATION_FILES:
+for f in STATION_FILESx:
     
     # Get data for one station and report to user.
     
     station_url = HPD_LOCAL_DIR + f 
     stationDF = pd.read_csv(station_url, sep=',', header='infer', dtype=str)
-    print ("Working on Station ID " + stationDF["STATION"].iloc[1] + " at location " + stationDF["NAME"].iloc[1] + ", with " + str(stationDF.shape[0]) + " rows.")
+    print ("Working on Station ID " + stationDF["STATION"].iloc[1] + " at location " + stationDF["NAME"].iloc[1] + ", with " + str(len(stationDF)) + " rows.")
 
     # Some data cleanup.
 
@@ -122,29 +125,55 @@ for f in STATION_FILES:
     stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY),'DaysOfRain'] = 6
     stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY)  & (stationDF['DlySum6DaysAgo'] >= RAINY),'DaysOfRain'] = 7
  
-    # Create a column that shows (for each day) how many days it has been sunny. 
+    # Create a column that shows (for each day) how many days it has been DRY. 
     # 1 = just today; 2 = today and yesterday; etc.
 
-    stationDF["DaysOfSun"] = 0   
-    stationDF.loc[(stationDF["DlySumToday"] <= SUNNY), "DaysOfSun"] = 1
-    stationDF.loc[(stationDF['DlySumToday'] <= SUNNY) & (stationDF['DlySum1DayAgo'] <= SUNNY), 'DaysOfSun'] = 2
-    stationDF.loc[(stationDF['DlySumToday'] <= SUNNY) & (stationDF['DlySum1DayAgo'] <= SUNNY) & (stationDF['DlySum2DaysAgo'] <= SUNNY), 'DaysOfSun'] = 3
-    stationDF.loc[(stationDF['DlySumToday'] <= SUNNY) & (stationDF['DlySum1DayAgo'] <= SUNNY) & (stationDF['DlySum2DaysAgo'] <= SUNNY) & (stationDF['DlySum3DaysAgo'] <= SUNNY), 'DaysOfSun'] = 4
-    stationDF.loc[(stationDF['DlySumToday'] <= SUNNY) & (stationDF['DlySum1DayAgo'] <= SUNNY) & (stationDF['DlySum2DaysAgo'] <= SUNNY) & (stationDF['DlySum3DaysAgo'] <= SUNNY) & (stationDF['DlySum4DaysAgo'] <= SUNNY), 'DaysOfSun'] = 5
-    stationDF.loc[(stationDF['DlySumToday'] <= SUNNY) & (stationDF['DlySum1DayAgo'] <= SUNNY) & (stationDF['DlySum2DaysAgo'] <= SUNNY) & (stationDF['DlySum3DaysAgo'] <= SUNNY) & (stationDF['DlySum4DaysAgo'] <= SUNNY)  & (stationDF['DlySum5DaysAgo'] <= SUNNY),'DaysOfSun'] = 6
-    stationDF.loc[(stationDF['DlySumToday'] <= SUNNY) & (stationDF['DlySum1DayAgo'] <= SUNNY) & (stationDF['DlySum2DaysAgo'] <= SUNNY) & (stationDF['DlySum3DaysAgo'] <= SUNNY) & (stationDF['DlySum4DaysAgo'] <= SUNNY)  & (stationDF['DlySum5DaysAgo'] <= SUNNY)  & (stationDF['DlySum6DaysAgo'] <= SUNNY),'DaysOfSun'] = 7
- 
+    stationDF["DaysOfDry"] = 0   
+    stationDF.loc[(stationDF["DlySumToday"] <= DRY), "DaysOfDry"] = 1
+    stationDF.loc[(stationDF['DlySumToday'] <= DRY) & (stationDF['DlySum1DayAgo'] <= DRY), 'DaysOfDry'] = 2
+    stationDF.loc[(stationDF['DlySumToday'] <= DRY) & (stationDF['DlySum1DayAgo'] <= DRY) & (stationDF['DlySum2DaysAgo'] <= DRY), 'DaysOfDry'] = 3
+    stationDF.loc[(stationDF['DlySumToday'] <= DRY) & (stationDF['DlySum1DayAgo'] <= DRY) & (stationDF['DlySum2DaysAgo'] <= DRY) & (stationDF['DlySum3DaysAgo'] <= DRY), 'DaysOfDry'] = 4
+    stationDF.loc[(stationDF['DlySumToday'] <= DRY) & (stationDF['DlySum1DayAgo'] <= DRY) & (stationDF['DlySum2DaysAgo'] <= DRY) & (stationDF['DlySum3DaysAgo'] <= DRY) & (stationDF['DlySum4DaysAgo'] <= DRY), 'DaysOfDry'] = 5
+    stationDF.loc[(stationDF['DlySumToday'] <= DRY) & (stationDF['DlySum1DayAgo'] <= DRY) & (stationDF['DlySum2DaysAgo'] <= DRY) & (stationDF['DlySum3DaysAgo'] <= DRY) & (stationDF['DlySum4DaysAgo'] <= DRY)  & (stationDF['DlySum5DaysAgo'] <= DRY),'DaysOfDry'] = 6
+    stationDF.loc[(stationDF['DlySumToday'] <= DRY) & (stationDF['DlySum1DayAgo'] <= DRY) & (stationDF['DlySum2DaysAgo'] <= DRY) & (stationDF['DlySum3DaysAgo'] <= DRY) & (stationDF['DlySum4DaysAgo'] <= DRY)  & (stationDF['DlySum5DaysAgo'] <= DRY)  & (stationDF['DlySum6DaysAgo'] <= DRY),'DaysOfDry'] = 7
+
+    # Add columns for "dry tomorrow" and "rainy tomorrow"
+
+    stationDF["RainTomorrow"] = ""   
+    stationDF.loc[(stationDF["DlySumTomorrow"] >= RAINY), "RainTomorrow"] = "Y"
+
+    stationDF["DryTomorrow"] = ""   
+    stationDF.loc[(stationDF["DlySumTomorrow"] <= DRY), "DryTomorrow"] = "Y"
+
+
     # Join this station to all stations
     
     hpdDF = pd.concat([hpdDF, stationDF], ignore_index=True)
 
     # End of loop over stations
 
-print ("\nTotal days with valid data = " + str(hpdDF.shape[0])) 
+# Show some overall stats
 
-# Make subsets for each number of rainy and sunny days, and report average rain the next day
+TotalRows = len(hpdDF)
+print ("\nTotal data points (rows) for all stations and days = " + str(TotalRows)) 
 
-Rainy0DaysDF = hpdDF.query("DaysOfRain == 0")
+print ("\nAverage rain per day = " + str(round(hpdDF["DlySumToday"].mean(), 2)))
+
+TotalDry = len(hpdDF[hpdDF['DlySumToday'] <= DRY])
+PctDry = round((TotalDry / TotalRows * 100), 1)
+print ("\nPercent of days that are dry = " + str(PctDry))
+
+TotalRainy = len(hpdDF[hpdDF['DlySumToday'] >= RAINY])
+PctRainy = round((TotalRainy / TotalRows * 100), 1)
+print ("\nPercent of days that are rainy = " + str(PctRainy))
+
+#TotalRainy = len(hpdDF[hpdDF['DlySumToday'] >= RAINY])
+#print ("\nFraction of days that are rainy = " + str(round(TotalDry / TotalRows * 100), 2))
+
+
+# Make subsets for each number of rainy and DRY days, and report average rain the next day
+
+#Rainy0DaysDF = hpdDF.query("DaysOfRain == 0")
 Rainy1DayDF = hpdDF.query("DaysOfRain == 1")
 Rainy2DaysDF = hpdDF.query("DaysOfRain == 2")
 Rainy3DaysDF = hpdDF.query("DaysOfRain == 3")
@@ -153,50 +182,53 @@ Rainy5DaysDF = hpdDF.query("DaysOfRain == 5")
 Rainy6DaysDF = hpdDF.query("DaysOfRain == 6")
 Rainy7DaysDF = hpdDF.query("DaysOfRain == 7")
 
-print ("\nFound " + str(Rainy0DaysDF.shape[0]) + " not-rainy days.")
-print ("Found " + str(Rainy1DayDF.shape[0]) + " runs of 1 rainy day.")
-print ("Found " + str(Rainy2DaysDF.shape[0]) + " runs of 2 rainy days.")
-print ("Found " + str(Rainy3DaysDF.shape[0]) + " runs of 3 rainy days.")
-print ("Found " + str(Rainy4DaysDF.shape[0]) + " runs of 4 rainy days.")
-print ("Found " + str(Rainy5DaysDF.shape[0]) + " runs of 5 rainy days.")
-print ("Found " + str(Rainy6DaysDF.shape[0]) + " runs of 6 rainy days.")
-print ("Found " + str(Rainy7DaysDF.shape[0]) + " runs of 7 rainy days.")
+#print ("\nFound " + str(Rainy0DaysDF.shape[0]) + " not-rainy days.")
+print ("\nFound " + str(len(Rainy1DayDF)) + " runs of 1 rainy day.")
+print ("Found " + str(len(Rainy2DaysDF)) + " runs of 2 rainy days.")
+print ("Found " + str(len(Rainy3DaysDF)) + " runs of 3 rainy days.")
+print ("Found " + str(len(Rainy4DaysDF)) + " runs of 4 rainy days.")
+print ("Found " + str(len(Rainy5DaysDF)) + " runs of 5 rainy days.")
+print ("Found " + str(len(Rainy6DaysDF)) + " runs of 6 rainy days.")
+print ("Found " + str(len(Rainy7DaysDF)) + " runs of 7 rainy days.")
 
-Sunny0DaysDF = hpdDF.query("DaysOfSun == 0")
-Sunny1DayDF = hpdDF.query("DaysOfSun == 1")
-Sunny2DaysDF = hpdDF.query("DaysOfSun == 2")
-Sunny3DaysDF = hpdDF.query("DaysOfSun == 3")
-Sunny4DaysDF = hpdDF.query("DaysOfSun == 4")
-Sunny5DaysDF = hpdDF.query("DaysOfSun == 5")
-Sunny6DaysDF = hpdDF.query("DaysOfSun == 6")
-Sunny7DaysDF = hpdDF.query("DaysOfSun == 7")
+#Dry0DaysDF = hpdDF.query("DaysOfDry == 0")
+Dry1DayDF = hpdDF.query("DaysOfDry == 1")
+Dry2DaysDF = hpdDF.query("DaysOfDry == 2")
+Dry3DaysDF = hpdDF.query("DaysOfDry == 3")
+Dry4DaysDF = hpdDF.query("DaysOfDry == 4")
+Dry5DaysDF = hpdDF.query("DaysOfDry == 5")
+Dry6DaysDF = hpdDF.query("DaysOfDry == 6")
+Dry7DaysDF = hpdDF.query("DaysOfDry == 7")
 
-print ("\nFound " + str(Sunny0DaysDF.shape[0]) + " not-sunny days.")
-print ("Found " + str(Sunny1DayDF.shape[0]) + " runs of 1 sunny day.")
-print ("Found " + str(Sunny2DaysDF.shape[0]) + " runs of 2 sunny days.")
-print ("Found " + str(Sunny3DaysDF.shape[0]) + " runs of 3 sunny days.")
-print ("Found " + str(Sunny4DaysDF.shape[0]) + " runs of 4 sunny days.")
-print ("Found " + str(Sunny5DaysDF.shape[0]) + " runs of 5 sunny days.")
-print ("Found " + str(Sunny6DaysDF.shape[0]) + " runs of 6 sunny days.")
-print ("Found " + str(Sunny7DaysDF.shape[0]) + " runs of 7 sunny days.")
+#print ("\nFound " + str(len(Dry0DaysDF)) + " not-dry days.")
+print ("\nFound " + str(len(Dry1DayDF)) + " runs of 1 dry day.")
+print ("Found " + str(len(Dry2DaysDF)) + " runs of 2 dry days.")
+print ("Found " + str(len(Dry3DaysDF)) + " runs of 3 dry days.")
+print ("Found " + str(len(Dry4DaysDF)) + " runs of 4 dry days.")
+print ("Found " + str(len(Dry5DaysDF)) + " runs of 5 dry days.")
+print ("Found " + str(len(Dry6DaysDF)) + " runs of 6 dry days.")
+print ("Found " + str(len(Dry7DaysDF)) + " runs of 7 dry days.")
 
-# Calc average rainfall on the day after a run of sunny or rainy days of varying lengths.
+# Calc average rainfall on the day after a run of dry or rainy days of varying lengths.
 
-print ("\nAverage rain after 0 days of rain... " + str(round(Rainy0DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 1 day of rain... " + str(round(Rainy1DayDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 2 days of rain... " + str(round(Rainy2DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 3 days of rain... " + str(round(Rainy3DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 4 days of rain... " + str(round(Rainy4DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 5 days of rain... " + str(round(Rainy5DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 6 days of rain... " + str(round(Rainy6DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 7 days of rain... " + str(round(Rainy7DaysDF["DlySumTomorrow"].mean(), 2)))
+#print ("\nAverage rain after 0 days of rain... " + str(round(Rainy0DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("\nAverage rainfall after 1 day of rain... " + str(round(Rainy1DayDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 2 days of rain... " + str(round(Rainy2DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 3 days of rain... " + str(round(Rainy3DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 4 days of rain... " + str(round(Rainy4DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 5 days of rain... " + str(round(Rainy5DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 6 days of rain... " + str(round(Rainy6DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 7 days of rain... " + str(round(Rainy7DaysDF["DlySumTomorrow"].mean(), 2)))
 
-print ("\nAverage rain after 0 days of sun... " + str(round(Sunny0DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 1 day of sun... " + str(round(Sunny1DayDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 2 days of sun... " + str(round(Sunny2DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 3 days of sun... " + str(round(Sunny3DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 4 days of sun... " + str(round(Sunny4DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 5 days of sun... " + str(round(Sunny5DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 6 days of sun... " + str(round(Sunny6DaysDF["DlySumTomorrow"].mean(), 2)))
-print ("Average rain after 7 days of sun... " + str(round(Sunny7DaysDF["DlySumTomorrow"].mean(), 2)))
+#print ("\nAverage rain after 0 days of dry... " + str(round(Dry0DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("\nAverage rainfall after 1 day of dry... " + str(round(Dry1DayDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 2 days of dry... " + str(round(Dry2DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 3 days of dry... " + str(round(Dry3DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 4 days of dry... " + str(round(Dry4DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 5 days of dry... " + str(round(Dry5DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 6 days of dry... " + str(round(Dry6DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 7 days of dry... " + str(round(Dry7DaysDF["DlySumTomorrow"].mean(), 2)))
+
+# TODO Calc the chance of a rainy day after string of rainy days. Same for dry days.
+
 
