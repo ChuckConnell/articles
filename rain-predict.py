@@ -3,9 +3,7 @@
 
 """
 Does a rainy day (or sequence of rainy days) predict that it is more likely to rain the next day? 
-Or maybe it is less likely because the clouds have "used up" their rain?
-
-In other words, does rain predict rain? 
+Or maybe it is less likely because the clouds have "used up" their rain? In other words, does rain predict rain? 
 
 Chuck Connell, summer 2023
 
@@ -17,45 +15,50 @@ General description of daily rainfall from https://weatherins.com/rain-guideline
 One (1.00) inch of rain – A light moderate rain never reaches this amount, heavy rain for several hours (2-5 hours). There would be deep standing water for long periods of time.
 """
 
-# TODO Use len not shape
-
 # Libraries
 
 #import os
 #import fnmatch
 import pandas as pd 
+#import numpy as np
 #import datetime as dt
 
 # Include files
 
-from rain_helpers import STATION_FILES, STATION_FILESx, STATION_FILESxx
+from rain_helpers import STATION_FILES
 
 # Constants
 
 HPD_CLOUD_DIR = "https://www.ncei.noaa.gov/data/coop-hourly-precipitation/v2/access/"  # Hourly Precipitation Data (HPD)
-HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/"
+HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/HPD/"
 DRY = 0.05  # less than this is considered "a dry day"
-RAINY = 0.5     # more than this is considered "a rainy day"
-START_DATE = "20000101"  # This is the format needed by pandas query().
+RAINY = 0.50     # more than this is considered "a rainy day"
+START_DATE = "20000101"  # This is the format for pandas query().
 END_DATE = "20500101"  
+STATION_MIN = 0.00  # to throw out stations with very little daily average rain, since they might skew the results. Zero means don't throw out any data for reason.
+SKIP_COUNT = 10  # skip input files for a quicker test. 1 = don't skip any.
 
 # Tell user key settings.
 
 print ("\nTaking data after " + str(pd.to_datetime(START_DATE)) + " and before " + str(pd.to_datetime(END_DATE)) + ".")
 print ("\nUsing daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(DRY) + " inches as a 'dry' day.")
-
+print ("\nDropping any station with < " + str(STATION_MIN) + " inches average daily rainfall, so they don't skew the results. Zero means don't apply this filter.")
+       
 # Make an empty dataframe to hold combined data across stations.
 
 hpdDF = pd.DataFrame()
 
 # Loop over all the stations, processing and enhancing that data, then add it to an overall dataset
 
-for f in STATION_FILESxx:
-    
+for i in range (0, len(STATION_FILES), SKIP_COUNT):
+
     # Get data for one station and report to user.
     
-    station_url = HPD_LOCAL_DIR + f   # Can read from local or NOAA cloud, just by changing the DIR
+    station_url = HPD_LOCAL_DIR + STATION_FILES[i]   # Can read from local or NOAA cloud, just by changing the DIR
     stationDF = pd.read_csv(station_url, sep=',', header='infer', dtype=str)
+    if (pd.isna(stationDF["NAME"].iloc[1])): 
+        print ("\nThrowing out " + STATION_FILES[i] + " because the NAME field is blank.")
+        continue
     station_raw_rows = len(stationDF)
     print ("\nWorking on Station ID " + stationDF["STATION"].iloc[1] + " at location " + stationDF["NAME"].iloc[1] + "." )
 
@@ -64,11 +67,18 @@ for f in STATION_FILESxx:
     stationDF = stationDF.query("DlySumQF != 'P'")    # throw out dates with a bad data quality flag
     stationDF = stationDF[["STATION","NAME","DATE","DlySum"]]    # keep only fields we need
     stationDF = stationDF.rename({"DlySum":"DlySumToday"}, axis='columns')  # to distinquish from other days we will join in
-    stationDF["DlySumToday"] = stationDF["DlySumToday"].astype(int) / 100   # convert totals from hundreths to inches
+    stationDF["DlySumToday"] = stationDF["DlySumToday"].astype(int) / 100.0   # convert totals from hundreths to inches
     stationDF["DATE"] = pd.to_datetime(stationDF["DATE"], errors='coerce')  # put in true date format
     stationDF = stationDF.query("DATE >= " + START_DATE)  
     stationDF = stationDF.query("DATE <= " + END_DATE) 
     stationDF = stationDF.query("DlySumToday >= 0")    # throw out dates with negative rainfall (yes there are some).
+
+    # Throw out stations with very low daily average, because it drags down results from more normal stations.
+    station_daily_mean = round(stationDF["DlySumToday"].mean(), 4)
+    print ("Daily mean rainfall for this station = " + str(station_daily_mean))
+    if (station_daily_mean < STATION_MIN):
+        print ("Throwing out this station since it has too litle rainfall, and it would skew the results.")
+        continue
 
     # Grab a snapshot for a self-join later. Adjust fields names to avoid confusion after the join.
 
@@ -163,14 +173,14 @@ for f in STATION_FILESxx:
 TotalRows = len(hpdDF)
 print ("\nTotal curated data points (rows) for all stations and days = " + str(TotalRows)) 
 
-print ("\nAverage rain per day overall = " + str(round(hpdDF["DlySumToday"].mean(), 2)) + " inches")
+print ("\nAverage rain per day overall = " + str(round(hpdDF["DlySumToday"].mean(), 4)) + " inches")
 
 TotalRainy = len(hpdDF[hpdDF['DlySumToday'] >= RAINY])
-PctRainy = round((TotalRainy / TotalRows * 100), 1)
+PctRainy = round(((TotalRainy / TotalRows) * 100), 1)
 print ("\nFraction of days overall that are rainy = " + str(PctRainy) + "%")
 
 TotalDry = len(hpdDF[hpdDF['DlySumToday'] <= DRY])
-PctDry = round((TotalDry / TotalRows * 100), 1)
+PctDry = round(((TotalDry / TotalRows) * 100), 1)
 print ("\nFraction of days overall that are dry = " + str(PctDry) + "%")
 
 # Make subsets for each number of rainy and dry days, 
@@ -241,7 +251,78 @@ print ("Average rainfall after 5 days of dry... " + str(round(Dry5DaysDF["DlySum
 print ("Average rainfall after 6 days of dry... " + str(round(Dry6DaysDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 7 days of dry... " + str(round(Dry7DaysDF["DlySumTomorrow"].mean(), 2)))
 
-# Find chance of rainy/dry day after each run.
+# Find chance of rainy day after each rainy run.
+
+if (Rainy1DayCount > 0):
+    Rainy1DayRainyTomorrowCount = len(Rainy1DayDF[Rainy1DayDF['RainTomorrow'] == "Y"])
+    PctRainy1DayRainyTommorrow = round(((Rainy1DayRainyTomorrowCount / Rainy1DayCount) * 100), 1)
+    print ("\nFraction of days it is rainy after 1 rainy day = " + str(PctRainy1DayRainyTommorrow) + "%")
+
+if (Rainy2DaysCount > 0):
+    Rainy2DaysRainyTomorrowCount = len(Rainy2DaysDF[Rainy2DaysDF['RainTomorrow'] == "Y"])
+    PctRainy2DaysRainyTommorrow = round(((Rainy2DaysRainyTomorrowCount / Rainy2DaysCount) * 100), 1)
+    print ("Fraction of days it is rainy after 2 rainy days = " + str(PctRainy2DaysRainyTommorrow) + "%")
+
+if (Rainy3DaysCount > 0):
+    Rainy3DaysRainyTomorrowCount = len(Rainy3DaysDF[Rainy3DaysDF['RainTomorrow'] == "Y"])
+    PctRainy3DaysRainyTommorrow = round(((Rainy3DaysRainyTomorrowCount / Rainy3DaysCount) * 100), 1)
+    print ("Fraction of days it is rainy after 3 rainy days = " + str(PctRainy3DaysRainyTommorrow) + "%")
+
+if (Rainy4DaysCount > 0):
+    Rainy4DaysRainyTomorrowCount = len(Rainy4DaysDF[Rainy4DaysDF['RainTomorrow'] == "Y"])
+    PctRainy4DaysRainyTommorrow = round(((Rainy4DaysRainyTomorrowCount / Rainy4DaysCount) * 100), 1)
+    print ("Fraction of days it is rainy after 4 rainy days = " + str(PctRainy4DaysRainyTommorrow) + "%")
+
+if (Rainy5DaysCount > 0):
+    Rainy5DaysRainyTomorrowCount = len(Rainy5DaysDF[Rainy5DaysDF['RainTomorrow'] == "Y"])
+    PctRainy5DaysRainyTommorrow = round(((Rainy5DaysRainyTomorrowCount / Rainy5DaysCount) * 100), 1)
+    print ("Fraction of days it is rainy after 5 rainy days = " + str(PctRainy5DaysRainyTommorrow) + "%")
+
+if (Rainy6DaysCount > 0):
+    Rainy6DaysRainyTomorrowCount = len(Rainy6DaysDF[Rainy6DaysDF['RainTomorrow'] == "Y"])
+    PctRainy6DaysRainyTommorrow = round(((Rainy6DaysRainyTomorrowCount / Rainy6DaysCount) * 100), 1)
+    print ("Fraction of days it is rainy after 6 rainy days = " + str(PctRainy6DaysRainyTommorrow) + "%")
+
+if (Rainy7DaysCount > 0):
+    Rainy7DaysRainyTomorrowCount = len(Rainy7DaysDF[Rainy7DaysDF['RainTomorrow'] == "Y"])
+    PctRainy7DaysRainyTommorrow = round(((Rainy7DaysRainyTomorrowCount / Rainy7DaysCount) * 100), 1)
+    print ("Fraction of days it is rainy after 7 rainy days = " + str(PctRainy7DaysRainyTommorrow) + "%")
+
+# Find chance of a dry day after each dry run.
 # TODO
 
+if (Dry1DayCount > 0):
+    Dry1DayDryTomorrowCount = len(Dry1DayDF[Dry1DayDF['DryTomorrow'] == "Y"])
+    PctDry1DayDryTommorrow = round(((Dry1DayDryTomorrowCount / Dry1DayCount) * 100), 1)
+    print ("\nFraction of days it is dry after 1 dry day = " + str(PctDry1DayDryTommorrow) + "%")
+
+if (Dry2DaysCount > 0):
+    Dry2DaysDryTomorrowCount = len(Dry2DaysDF[Dry2DaysDF['DryTomorrow'] == "Y"])
+    PctDry2DaysDryTommorrow = round(((Dry2DaysDryTomorrowCount / Dry2DaysCount) * 100), 1)
+    print ("Fraction of days it is dry after 2 dry days = " + str(PctDry2DaysDryTommorrow) + "%")
+
+if (Dry3DaysCount > 0):
+    Dry3DaysDryTomorrowCount = len(Dry3DaysDF[Dry3DaysDF['DryTomorrow'] == "Y"])
+    PctDry3DaysDryTommorrow = round(((Dry3DaysDryTomorrowCount / Dry3DaysCount) * 100), 1)
+    print ("Fraction of days it is dry after 3 dry days = " + str(PctDry3DaysDryTommorrow) + "%")
+
+if (Dry4DaysCount > 0):
+    Dry4DaysDryTomorrowCount = len(Dry4DaysDF[Dry4DaysDF['DryTomorrow'] == "Y"])
+    PctDry4DaysDryTommorrow = round(((Dry4DaysDryTomorrowCount / Dry4DaysCount) * 100), 1)
+    print ("Fraction of days it is dry after 4 dry days = " + str(PctDry4DaysDryTommorrow) + "%")
+
+if (Dry5DaysCount > 0):
+    Dry5DaysDryTomorrowCount = len(Dry5DaysDF[Dry5DaysDF['DryTomorrow'] == "Y"])
+    PctDry5DaysDryTommorrow = round(((Dry5DaysDryTomorrowCount / Dry5DaysCount) * 100), 1)
+    print ("Fraction of days it is dry after 5 dry days = " + str(PctDry5DaysDryTommorrow) + "%")
+
+if (Dry6DaysCount > 0):
+    Dry6DaysDryTomorrowCount = len(Dry6DaysDF[Dry6DaysDF['DryTomorrow'] == "Y"])
+    PctDry6DaysDryTommorrow = round(((Dry6DaysDryTomorrowCount / Dry6DaysCount) * 100), 1)
+    print ("Fraction of days it is dry after 6 dry days = " + str(PctDry6DaysDryTommorrow) + "%")
+
+if (Dry7DaysCount > 0):
+    Dry7DaysDryTomorrowCount = len(Dry7DaysDF[Dry7DaysDF['DryTomorrow'] == "Y"])
+    PctDry7DaysDryTommorrow = round(((Dry7DaysDryTomorrowCount / Dry7DaysCount) * 100), 1)
+    print ("Fraction of days it is dry after 7 dry days = " + str(PctDry7DaysDryTommorrow) + "%")
 
