@@ -13,7 +13,7 @@ from urllib import request
 
 HPD_CLOUD_DIR = "https://www.ncei.noaa.gov/data/coop-hourly-precipitation/v2/access/"  # Hourly Precipitation Data (HPD)
 HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/HPD/"
-SKIP_COUNT = 5
+SKIP_COUNT = 3
 
 
 for i in range (0, len(STATION_FILES), SKIP_COUNT):

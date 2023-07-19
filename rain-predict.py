@@ -34,9 +34,9 @@ HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/HPD/"
 DRY = 0.05  # less than this is considered "a dry day"
 RAINY = 0.50     # more than this is considered "a rainy day"
 START_DATE = "20000101"  # This is the format for pandas query().
-END_DATE = "20500101"  
+END_DATE = "20220101"  
 STATION_MIN = 0.00  # to throw out stations with very little daily average rain, since they might skew the results. Zero means don't throw out any data for reason.
-SKIP_COUNT = 10  # skip input files for a quicker test. 1 = don't skip any.
+SKIP_COUNT = 3  # skip input files so we don't do all 2000. 1 = don't skip any.
 
 # Tell user key settings.
 
