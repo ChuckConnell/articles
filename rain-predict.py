@@ -36,7 +36,7 @@ RAINY = 0.50     # more than this is considered "a rainy day"
 START_DATE = "20000101"  # This is the format for pandas query().
 END_DATE = "20220101"  
 STATION_MIN = 0.00  # to throw out stations with very little daily average rain, since they might skew the results. Zero means don't throw out any data for reason.
-SKIP_COUNT = 3  # skip input files so we don't do all 2000. 1 = don't skip any.
+SKIP_COUNT = 1  # skip input files so we don't do all 2000. 1 = don't skip any.
 
 # Tell user key settings.
 
@@ -50,17 +50,19 @@ hpdDF = pd.DataFrame()
 
 # Loop over all the stations, processing and enhancing that data, then add it to an overall dataset
 
+stations_used = 0 # keep track of how many stations have meaningful data
+
 for i in range (0, len(STATION_FILES), SKIP_COUNT):
 
     # Get data for one station and report to user.
     
     station_url = HPD_LOCAL_DIR + STATION_FILES[i]   # Can read from local or NOAA cloud, just by changing the DIR
     stationDF = pd.read_csv(station_url, sep=',', header='infer', dtype=str)
-    if (pd.isna(stationDF["NAME"].iloc[1])): 
+    if (pd.isna(stationDF["NAME"].iloc[0])): 
         print ("\nThrowing out " + STATION_FILES[i] + " because the NAME field is blank.")
         continue
     station_raw_rows = len(stationDF)
-    print ("\nWorking on Station ID " + stationDF["STATION"].iloc[1] + " at location " + stationDF["NAME"].iloc[1] + "." )
+    print ("\nWorking on Station ID " + stationDF["STATION"].iloc[0] + " at location " + stationDF["NAME"].iloc[0] + "." )
 
     # Some data cleanup.
 
@@ -162,16 +164,21 @@ for i in range (0, len(STATION_FILES), SKIP_COUNT):
     station_final_rows = len(stationDF)
     print ("Raw rows in this station = " + str(station_raw_rows) + ", final (curated) rows = " + str(station_final_rows) + ".")
     
+    # Count how many stations actually had useful data
+
+    if (station_final_rows > 0):  
+        stations_used += 1
+    
     # Join this station to all stations
     
     hpdDF = pd.concat([hpdDF, stationDF], ignore_index=True)
 
     # End of loop over stations
-
+    
 # Show some overall stats
 
 TotalRows = len(hpdDF)
-print ("\nTotal curated data points (rows) for all stations and days = " + str(TotalRows)) 
+print ("\nStations used = " + str(stations_used) + ". Total curated data points (rows) for all stations and days = " + str(TotalRows )) 
 
 print ("\nAverage rain per day overall = " + str(round(hpdDF["DlySumToday"].mean(), 4)) + " inches")
 
