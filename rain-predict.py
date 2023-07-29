@@ -25,18 +25,19 @@ import pandas as pd
 
 # Include files
 
-from rain_helpers import STATION_FILES
+from rain_helpers import ALL_STATION_FILES
 
 # Constants
 
 HPD_CLOUD_DIR = "https://www.ncei.noaa.gov/data/coop-hourly-precipitation/v2/access/"  # Hourly Precipitation Data (HPD)
 HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/HPD/"
-DRY = 0.05  # less than this is considered "a dry day"
-RAINY = 0.50     # more than this is considered "a rainy day"
-START_DATE = "20000101"  # This is the format for pandas query().
-END_DATE = "20220101"  
+DRY = 0.05  # INCHES, less than this is considered "a dry day"
+RAINY = 0.5     # INCHES, more than this is considered "a rainy day"
+START_DATE = "19400101"  # This is the format for pandas query().
+END_DATE = "19600101"  
 STATION_MIN = 0.00  # to throw out stations with very little daily average rain, since they might skew the results. Zero means don't throw out any data for reason.
-SKIP_COUNT = 1  # skip input files so we don't do all 2000. 1 = don't skip any.
+SKIP_COUNT = 100  # skip input files so we don't do all 2000. 1 = don't skip any.
+STATION_LIST_OUTPUT = "/Users/chuck/Desktop/Articles/hpd_stations_used_list.txt"
 
 # Tell user key settings.
 
@@ -44,22 +45,27 @@ print ("\nTaking data after " + str(pd.to_datetime(START_DATE)) + " and before "
 print ("\nUsing daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(DRY) + " inches as a 'dry' day.")
 print ("\nDropping any station with < " + str(STATION_MIN) + " inches average daily rainfall, so they don't skew the results. Zero means don't apply this filter.")
        
-# Make an empty dataframe to hold combined data across stations.
+# Initialize some variables.
 
-hpdDF = pd.DataFrame()
+hpdDF = pd.DataFrame()   # empty dataframe to hold combined data across stations.
+stations_used_count = 0 # keep track of how many stations have meaningful data
+stations_used_list = []  # to build up a list of stations actually used, which is usually smaller than the list of stations files we read in
+
+# Choose either all stations we know about, or a specific list of stations (usually from a previous run of this program)
+
+station_files = ALL_STATION_FILES
+# TODO get saved list
 
 # Loop over all the stations, processing and enhancing that data, then add it to an overall dataset
 
-stations_used = 0 # keep track of how many stations have meaningful data
-
-for i in range (0, len(STATION_FILES), SKIP_COUNT):
+for i in range (0, len(station_files), SKIP_COUNT):
 
     # Get data for one station and report to user.
     
-    station_url = HPD_LOCAL_DIR + STATION_FILES[i]   # Can read from local or NOAA cloud, just by changing the DIR
+    station_url = HPD_LOCAL_DIR + station_files[i]   # Can read from local or NOAA cloud, just by changing the DIR
     stationDF = pd.read_csv(station_url, sep=',', header='infer', dtype=str)
     if (pd.isna(stationDF["NAME"].iloc[0])): 
-        print ("\nThrowing out " + STATION_FILES[i] + " because the NAME field is blank.")
+        print ("\nThrowing out " + station_files[i] + " because the NAME field is blank.")
         continue
     station_raw_rows = len(stationDF)
     print ("\nWorking on Station ID " + stationDF["STATION"].iloc[0] + " at location " + stationDF["NAME"].iloc[0] + "." )
@@ -164,21 +170,25 @@ for i in range (0, len(STATION_FILES), SKIP_COUNT):
     station_final_rows = len(stationDF)
     print ("Raw rows in this station = " + str(station_raw_rows) + ", final (curated) rows = " + str(station_final_rows) + ".")
     
-    # Count how many stations actually had useful data
-
+    # If this station had useful data, count it and join to overall result set.
+    
     if (station_final_rows > 0):  
-        stations_used += 1
-    
-    # Join this station to all stations
-    
-    hpdDF = pd.concat([hpdDF, stationDF], ignore_index=True)
-
+        stations_used_count += 1
+        hpdDF = pd.concat([hpdDF, stationDF], ignore_index=True)
+        stations_used_list.append(station_files[i])
+        
     # End of loop over stations
     
+# Write out list of stations actually used
+
+print ("\nWriting list of station files actually used to " + STATION_LIST_OUTPUT)
+with open(STATION_LIST_OUTPUT, 'w') as fp:
+    fp.write('\n'.join(stations_used_list))
+
 # Show some overall stats
 
 TotalRows = len(hpdDF)
-print ("\nStations used = " + str(stations_used) + ". Total curated data points (rows) for all stations and days = " + str(TotalRows )) 
+print ("\nStations used = " + str(stations_used_count) + ". Total curated data points (rows) for all stations and days = " + str(TotalRows )) 
 
 print ("\nAverage rain per day overall = " + str(round(hpdDF["DlySumToday"].mean(), 4)) + " inches")
 
@@ -189,6 +199,7 @@ print ("\nFraction of days overall that are rainy = " + str(PctRainy) + "%")
 TotalDry = len(hpdDF[hpdDF['DlySumToday'] <= DRY])
 PctDry = round(((TotalDry / TotalRows) * 100), 1)
 print ("\nFraction of days overall that are dry = " + str(PctDry) + "%")
+
 
 # Make subsets for each number of rainy and dry days, 
 

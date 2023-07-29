@@ -8,7 +8,7 @@ Created on Wed Jul 12 11:01:52 2023
 
 # NOAA weather station rain files. About 2000.
 
-STATION_FILES = [
+ALL_STATION_FILES = [
 "RQC00660061.csv"
 ,"RQC00661901.csv"
 ,"RQC00662336.csv"
