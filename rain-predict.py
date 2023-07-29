@@ -34,16 +34,19 @@ HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/HPD/"
 DRY = 0.05  # INCHES, less than this is considered "a dry day"
 RAINY = 0.5     # INCHES, more than this is considered "a rainy day"
 START_DATE = "19400101"  # This is the format for pandas query().
-END_DATE = "19600101"  
+END_DATE = "19600101"
 STATION_MIN = 0.00  # to throw out stations with very little daily average rain, since they might skew the results. Zero means don't throw out any data for reason.
-SKIP_COUNT = 100  # skip input files so we don't do all 2000. 1 = don't skip any.
+SKIP_COUNT = 1  # skip input files so we don't do all 2000. 1 = don't skip any.
 STATION_LIST_OUTPUT = "/Users/chuck/Desktop/Articles/hpd_stations_used_list.txt"
+STATION_LIST_INPUT = "/Users/chuck/Desktop/Articles/hpd_stations_used_list.txt"
+ALL_STATIONS = True   # use every station, or a specific list ?
 
 # Tell user key settings.
 
 print ("\nTaking data after " + str(pd.to_datetime(START_DATE)) + " and before " + str(pd.to_datetime(END_DATE)) + ".")
 print ("\nUsing daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(DRY) + " inches as a 'dry' day.")
 print ("\nDropping any station with < " + str(STATION_MIN) + " inches average daily rainfall, so they don't skew the results. Zero means don't apply this filter.")
+print ("\nUse all stations = " + str(ALL_STATIONS))
        
 # Initialize some variables.
 
@@ -52,10 +55,16 @@ stations_used_count = 0 # keep track of how many stations have meaningful data
 stations_used_list = []  # to build up a list of stations actually used, which is usually smaller than the list of stations files we read in
 
 # Choose either all stations we know about, or a specific list of stations (usually from a previous run of this program)
+# For a specific set of files, you normally set SKIP_COUNT = 1, so you get all of them.
 
-station_files = ALL_STATION_FILES
-# TODO get saved list
-
+if (ALL_STATIONS):
+    station_files = ALL_STATION_FILES
+else:
+    with open(STATION_LIST_INPUT, 'r') as fp:  
+        data = fp.read()
+        station_files = data.split("\n")
+        fp.close()
+    
 # Loop over all the stations, processing and enhancing that data, then add it to an overall dataset
 
 for i in range (0, len(station_files), SKIP_COUNT):
@@ -184,6 +193,7 @@ for i in range (0, len(station_files), SKIP_COUNT):
 print ("\nWriting list of station files actually used to " + STATION_LIST_OUTPUT)
 with open(STATION_LIST_OUTPUT, 'w') as fp:
     fp.write('\n'.join(stations_used_list))
+    fp.close()
 
 # Show some overall stats
 
