@@ -33,19 +33,20 @@ HPD_CLOUD_DIR = "https://www.ncei.noaa.gov/data/coop-hourly-precipitation/v2/acc
 HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/HPD/"
 DRY = 0.05  # INCHES, less than this is considered "a dry day"
 RAINY = 0.5     # INCHES, more than this is considered "a rainy day"
-START_DATE = "19400101"  # This is the format for pandas query().
-END_DATE = "19600101"
-STATION_MIN = 0.00  # to throw out stations with very little daily average rain, since they might skew the results. Zero means don't throw out any data for reason.
+START_DATE = "19700101"  # This is the format for pandas query().
+END_DATE = "19800101"
+STATION_MIN = 0.00  # to throw out stations with very little daily average rain. Zero means don't throw out any data for reason.
+STATION_MAX = 99.00  # to throw out stations with a lot of daily average rain, 99 means don't throw out any data for reason.
 SKIP_COUNT = 1  # skip input files so we don't do all 2000. 1 = don't skip any.
 STATION_LIST_OUTPUT = "/Users/chuck/Desktop/Articles/hpd_stations_used_list.txt"
-STATION_LIST_INPUT = "/Users/chuck/Desktop/Articles/hpd_stations_used_list.txt"
-ALL_STATIONS = True   # use every station, or a specific list ?
+STATION_LIST_INPUT = "/Users/chuck/Desktop/Articles/hpd_stations_used_list_1940-1950.txt"
+ALL_STATIONS = False  # use every station, or a specific list ?
 
 # Tell user key settings.
 
 print ("\nTaking data after " + str(pd.to_datetime(START_DATE)) + " and before " + str(pd.to_datetime(END_DATE)) + ".")
 print ("\nUsing daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(DRY) + " inches as a 'dry' day.")
-print ("\nDropping any station with < " + str(STATION_MIN) + " inches average daily rainfall, so they don't skew the results. Zero means don't apply this filter.")
+print ("\nDropping any station with less than " + str(STATION_MIN) + " inches average daily rainfall, or greater than " + str(STATION_MAX) + ".")
 print ("\nUse all stations = " + str(ALL_STATIONS))
        
 # Initialize some variables.
@@ -83,18 +84,25 @@ for i in range (0, len(station_files), SKIP_COUNT):
 
     stationDF = stationDF.query("DlySumQF != 'P'")    # throw out dates with a bad data quality flag
     stationDF = stationDF[["STATION","NAME","DATE","DlySum"]]    # keep only fields we need
+
     stationDF = stationDF.rename({"DlySum":"DlySumToday"}, axis='columns')  # to distinquish from other days we will join in
+    stationDF = stationDF[stationDF['DlySumToday'].notna()]   # throw out rows with empty daily rain amts
     stationDF["DlySumToday"] = stationDF["DlySumToday"].astype(int) / 100.0   # convert totals from hundreths to inches
+    stationDF = stationDF.query("DlySumToday >= 0")    # throw out dates with negative rainfall (yes there are some).
+
     stationDF["DATE"] = pd.to_datetime(stationDF["DATE"], errors='coerce')  # put in true date format
     stationDF = stationDF.query("DATE >= " + START_DATE)  
     stationDF = stationDF.query("DATE <= " + END_DATE) 
-    stationDF = stationDF.query("DlySumToday >= 0")    # throw out dates with negative rainfall (yes there are some).
-
-    # Throw out stations with very low daily average, because it drags down results from more normal stations.
+    
+    # Throw out stations with very low or high daily average, to get rid of outliers
+    
     station_daily_mean = round(stationDF["DlySumToday"].mean(), 4)
     print ("Daily mean rainfall for this station = " + str(station_daily_mean))
     if (station_daily_mean < STATION_MIN):
-        print ("Throwing out this station since it has too litle rainfall, and it would skew the results.")
+        print ("Throwing out this station for too litle rainfall.")
+        continue
+    if (station_daily_mean > STATION_MAX):
+        print ("Throwing out this station for too much rainfall.")
         continue
 
     # Grab a snapshot for a self-join later. Adjust fields names to avoid confusion after the join.
@@ -105,6 +113,9 @@ for i in range (0, len(station_files), SKIP_COUNT):
 
     # Add in some other dates, for which we will pull in rainfall.
 
+    stationDF["DATE_minus9"] = stationDF["DATE"] - pd.offsets.Day(9)
+    stationDF["DATE_minus8"] = stationDF["DATE"] - pd.offsets.Day(8)
+    stationDF["DATE_minus7"] = stationDF["DATE"] - pd.offsets.Day(7)
     stationDF["DATE_minus6"] = stationDF["DATE"] - pd.offsets.Day(6)
     stationDF["DATE_minus5"] = stationDF["DATE"] - pd.offsets.Day(5)
     stationDF["DATE_minus4"] = stationDF["DATE"] - pd.offsets.Day(4)
@@ -114,6 +125,19 @@ for i in range (0, len(station_files), SKIP_COUNT):
     stationDF["DATE_plus1"] = stationDF["DATE"] + pd.offsets.Day(1)
 
     # Join other rainfall onto base record. Adjust column names to make clear what we did.
+
+    stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus9"], right_on = ["STATION","DATEother"])
+    stationDF = stationDF.rename({"DlySumOther":"DlySum9DaysAgo"}, axis='columns')  
+    stationDF = stationDF.drop(columns=["DATEother"])
+
+    stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus8"], right_on = ["STATION","DATEother"])
+    stationDF = stationDF.rename({"DlySumOther":"DlySum8DaysAgo"}, axis='columns')  
+    stationDF = stationDF.drop(columns=["DATEother"])
+
+    stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus7"], right_on = ["STATION","DATEother"])
+    stationDF = stationDF.rename({"DlySumOther":"DlySum7DaysAgo"}, axis='columns')  
+    stationDF = stationDF.drop(columns=["DATEother"])
+
     stationDF = stationDF.merge(stationCopyDF, how='inner', left_on=["STATION","DATE_minus6"], right_on = ["STATION","DATEother"])
     stationDF = stationDF.rename({"DlySumOther":"DlySum6DaysAgo"}, axis='columns')  
     stationDF = stationDF.drop(columns=["DATEother"])
@@ -152,8 +176,12 @@ for i in range (0, len(station_files), SKIP_COUNT):
     stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY), 'DaysOfRain'] = 4
     stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY), 'DaysOfRain'] = 5
     stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY),'DaysOfRain'] = 6
-    stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY)  & (stationDF['DlySum6DaysAgo'] >= RAINY),'DaysOfRain'] = 7
- 
+    stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY) & (stationDF['DlySum6DaysAgo'] >= RAINY),'DaysOfRain'] = 7
+    stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY) & (stationDF['DlySum6DaysAgo'] >= RAINY) & (stationDF['DlySum7DaysAgo'] >= RAINY),'DaysOfRain'] = 8
+    stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY) & (stationDF['DlySum6DaysAgo'] >= RAINY) & (stationDF['DlySum7DaysAgo'] >= RAINY) & (stationDF['DlySum8DaysAgo'] >= RAINY),'DaysOfRain'] = 9
+    stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY) & (stationDF['DlySum6DaysAgo'] >= RAINY) & (stationDF['DlySum7DaysAgo'] >= RAINY) & (stationDF['DlySum8DaysAgo'] >= RAINY) & (stationDF['DlySum9DaysAgo'] >= RAINY),'DaysOfRain'] = 10
+    # TODO finish to 9 days
+    
     # Create a column that shows (for each day) how many days it has been DRY. 
     # 1 = just today; 2 = today and yesterday; etc.
 
@@ -220,6 +248,9 @@ Rainy4DaysDF = hpdDF.query("DaysOfRain == 4")
 Rainy5DaysDF = hpdDF.query("DaysOfRain == 5")
 Rainy6DaysDF = hpdDF.query("DaysOfRain == 6")
 Rainy7DaysDF = hpdDF.query("DaysOfRain == 7")
+Rainy8DaysDF = hpdDF.query("DaysOfRain == 8")
+Rainy9DaysDF = hpdDF.query("DaysOfRain == 9")
+Rainy10DaysDF = hpdDF.query("DaysOfRain == 10")
 
 Dry1DayDF = hpdDF.query("DaysOfDry == 1")
 Dry2DaysDF = hpdDF.query("DaysOfDry == 2")
@@ -245,6 +276,12 @@ Rainy6DaysCount = len(Rainy6DaysDF)
 print ("Found " + str(Rainy6DaysCount) + " runs of 6 rainy days.")
 Rainy7DaysCount = len(Rainy7DaysDF)
 print ("Found " + str(Rainy7DaysCount) + " runs of 7 rainy days.")
+Rainy8DaysCount = len(Rainy8DaysDF)
+print ("Found " + str(Rainy8DaysCount) + " runs of 8 rainy days.")
+Rainy9DaysCount = len(Rainy9DaysDF)
+print ("Found " + str(Rainy9DaysCount) + " runs of 9 rainy days.")
+Rainy10DaysCount = len(Rainy10DaysDF)
+print ("Found " + str(Rainy10DaysCount) + " runs of 10 rainy days.")
 
 Dry1DayCount = len(Dry1DayDF)
 print ("\nFound " + str(Dry1DayCount) + " runs of 1 dry day.")
@@ -270,6 +307,9 @@ print ("Average rainfall after 4 days of rain... " + str(round(Rainy4DaysDF["Dly
 print ("Average rainfall after 5 days of rain... " + str(round(Rainy5DaysDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 6 days of rain... " + str(round(Rainy6DaysDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 7 days of rain... " + str(round(Rainy7DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 8 days of rain... " + str(round(Rainy8DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 9 days of rain... " + str(round(Rainy9DaysDF["DlySumTomorrow"].mean(), 2)))
+print ("Average rainfall after 10 days of rain... " + str(round(Rainy10DaysDF["DlySumTomorrow"].mean(), 2)))
 
 print ("\nAverage rainfall after 1 day of dry... " + str(round(Dry1DayDF["DlySumTomorrow"].mean(), 2)))
 print ("Average rainfall after 2 days of dry... " + str(round(Dry2DaysDF["DlySumTomorrow"].mean(), 2)))
@@ -315,9 +355,23 @@ if (Rainy7DaysCount > 0):
     Rainy7DaysRainyTomorrowCount = len(Rainy7DaysDF[Rainy7DaysDF['RainTomorrow'] == "Y"])
     PctRainy7DaysRainyTommorrow = round(((Rainy7DaysRainyTomorrowCount / Rainy7DaysCount) * 100), 1)
     print ("Fraction of days it is rainy after 7 rainy days = " + str(PctRainy7DaysRainyTommorrow) + "%")
+    
+if (Rainy8DaysCount > 0):
+    Rainy8DaysRainyTomorrowCount = len(Rainy8DaysDF[Rainy8DaysDF['RainTomorrow'] == "Y"])
+    PctRainy8DaysRainyTommorrow = round(((Rainy8DaysRainyTomorrowCount / Rainy8DaysCount) * 100), 1)
+    print ("Fraction of days it is rainy after 8 rainy days = " + str(PctRainy8DaysRainyTommorrow) + "%")
+    
+if (Rainy9DaysCount > 0):
+    Rainy9DaysRainyTomorrowCount = len(Rainy9DaysDF[Rainy9DaysDF['RainTomorrow'] == "Y"])
+    PctRainy9DaysRainyTommorrow = round(((Rainy9DaysRainyTomorrowCount / Rainy9DaysCount) * 100), 1)
+    print ("Fraction of days it is rainy after 9 rainy days = " + str(PctRainy9DaysRainyTommorrow) + "%")
+    
+if (Rainy10DaysCount > 0):
+    Rainy10DaysRainyTomorrowCount = len(Rainy10DaysDF[Rainy10DaysDF['RainTomorrow'] == "Y"])
+    PctRainy10DaysRainyTommorrow = round(((Rainy10DaysRainyTomorrowCount / Rainy10DaysCount) * 100), 1)
+    print ("Fraction of days it is rainy after 10 rainy days = " + str(PctRainy10DaysRainyTommorrow) + "%")
 
 # Find chance of a dry day after each dry run.
-# TODO
 
 if (Dry1DayCount > 0):
     Dry1DayDryTomorrowCount = len(Dry1DayDF[Dry1DayDF['DryTomorrow'] == "Y"])
