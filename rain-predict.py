@@ -33,22 +33,15 @@ HPD_CLOUD_DIR = "https://www.ncei.noaa.gov/data/coop-hourly-precipitation/v2/acc
 HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/HPD/"
 DRY = 0.05  # INCHES, less than this is considered "a dry day"
 RAINY = 0.5     # INCHES, more than this is considered "a rainy day"
-START_DATE = "19700101"  # This is the format for pandas query().
-END_DATE = "19800101"
+START_DATE = "20000101"  # This is the date format for pandas query().
+END_DATE = "20220101"
 STATION_MIN = 0.00  # to throw out stations with very little daily average rain. Zero means don't throw out any data for reason.
 STATION_MAX = 99.00  # to throw out stations with a lot of daily average rain, 99 means don't throw out any data for reason.
 SKIP_COUNT = 1  # skip input files so we don't do all 2000. 1 = don't skip any.
 STATION_LIST_OUTPUT = "/Users/chuck/Desktop/Articles/hpd_stations_used_list.txt"
 STATION_LIST_INPUT = "/Users/chuck/Desktop/Articles/hpd_stations_used_list_1940-1950.txt"
-ALL_STATIONS = False  # use every station, or a specific list ?
+ALL_STATIONS = True  # use every station, or a specific list ?
 
-# Tell user key settings.
-
-print ("\nTaking data after " + str(pd.to_datetime(START_DATE)) + " and before " + str(pd.to_datetime(END_DATE)) + ".")
-print ("\nUsing daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(DRY) + " inches as a 'dry' day.")
-print ("\nDropping any station with less than " + str(STATION_MIN) + " inches average daily rainfall, or greater than " + str(STATION_MAX) + ".")
-print ("\nUse all stations = " + str(ALL_STATIONS))
-       
 # Initialize some variables.
 
 hpdDF = pd.DataFrame()   # empty dataframe to hold combined data across stations.
@@ -180,7 +173,6 @@ for i in range (0, len(station_files), SKIP_COUNT):
     stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY) & (stationDF['DlySum6DaysAgo'] >= RAINY) & (stationDF['DlySum7DaysAgo'] >= RAINY),'DaysOfRain'] = 8
     stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY) & (stationDF['DlySum6DaysAgo'] >= RAINY) & (stationDF['DlySum7DaysAgo'] >= RAINY) & (stationDF['DlySum8DaysAgo'] >= RAINY),'DaysOfRain'] = 9
     stationDF.loc[(stationDF['DlySumToday'] >= RAINY) & (stationDF['DlySum1DayAgo'] >= RAINY) & (stationDF['DlySum2DaysAgo'] >= RAINY) & (stationDF['DlySum3DaysAgo'] >= RAINY) & (stationDF['DlySum4DaysAgo'] >= RAINY)  & (stationDF['DlySum5DaysAgo'] >= RAINY) & (stationDF['DlySum6DaysAgo'] >= RAINY) & (stationDF['DlySum7DaysAgo'] >= RAINY) & (stationDF['DlySum8DaysAgo'] >= RAINY) & (stationDF['DlySum9DaysAgo'] >= RAINY),'DaysOfRain'] = 10
-    # TODO finish to 9 days
     
     # Create a column that shows (for each day) how many days it has been DRY. 
     # 1 = just today; 2 = today and yesterday; etc.
@@ -216,14 +208,14 @@ for i in range (0, len(station_files), SKIP_COUNT):
         
     # End of loop over stations
     
-# Write out list of stations actually used
+# Report key settings.
 
-print ("\nWriting list of station files actually used to " + STATION_LIST_OUTPUT)
-with open(STATION_LIST_OUTPUT, 'w') as fp:
-    fp.write('\n'.join(stations_used_list))
-    fp.close()
-
-# Show some overall stats
+print ("\nTook data after " + str(pd.to_datetime(START_DATE)) + " and before " + str(pd.to_datetime(END_DATE)) + ".")
+print ("\nUsed daily rainfall >= " + str(RAINY) + " inches as a 'rainy' day, and <= " + str(DRY) + " inches as a 'dry' day.")
+print ("\nDropped any station with less than " + str(STATION_MIN) + " inches average daily rainfall, or greater than " + str(STATION_MAX) + ".")
+print ("\nUsed all stations = " + str(ALL_STATIONS))
+       
+# Report overall stats
 
 TotalRows = len(hpdDF)
 print ("\nStations used = " + str(stations_used_count) + ". Total curated data points (rows) for all stations and days = " + str(TotalRows )) 
@@ -238,6 +230,12 @@ TotalDry = len(hpdDF[hpdDF['DlySumToday'] <= DRY])
 PctDry = round(((TotalDry / TotalRows) * 100), 1)
 print ("\nFraction of days overall that are dry = " + str(PctDry) + "%")
 
+# Write out list of stations actually used
+
+print ("\nWriting list of station files actually used to " + STATION_LIST_OUTPUT)
+with open(STATION_LIST_OUTPUT, 'w') as fp:
+    fp.write('\n'.join(stations_used_list))
+    fp.close()
 
 # Make subsets for each number of rainy and dry days, 
 
