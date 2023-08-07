@@ -6,7 +6,7 @@ Created on Wed Jul 12 12:25:22 2023
 @author: chuck
 """
 
-from rain_helpers import STATION_FILES
+from rain_helpers import ALL_STATION_FILES
 
 
 from urllib import request
@@ -16,8 +16,8 @@ HPD_LOCAL_DIR = "/Users/chuck/Desktop/Articles/NOAA/HPD/"
 SKIP_COUNT = 1
 
 
-for i in range (0, len(STATION_FILES), SKIP_COUNT):
-    print ("\n" + STATION_FILES[i])
-    request.urlretrieve(HPD_CLOUD_DIR + STATION_FILES[i], HPD_LOCAL_DIR + STATION_FILES[i])
+for i in range (0, len(ALL_STATION_FILES), SKIP_COUNT):
+    print ("\n" + ALL_STATION_FILES[i])
+    request.urlretrieve(HPD_CLOUD_DIR + ALL_STATION_FILES[i], HPD_LOCAL_DIR + ALL_STATION_FILES[i])
 
 
