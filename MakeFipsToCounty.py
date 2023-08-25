@@ -1,4 +1,4 @@
-# Translate FIPS codes to state and county names.
+# Translate FIPS codes to state and county names, and CBSAs.
 
 # The basic source data is found here: https://www.census.gov/geographies/reference-files/2021/demo/popest/2021-fips.html
 # There is a file of FIPS to states, and another of FIPS to counties (which uses the states).
