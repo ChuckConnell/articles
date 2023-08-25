@@ -1,26 +1,30 @@
 # Translate FIPS codes to state and county names.
 
-# The source data is found here: https://www.census.gov/geographies/reference-files/2021/demo/popest/2021-fips.html
+# The basic source data is found here: https://www.census.gov/geographies/reference-files/2021/demo/popest/2021-fips.html
 # There is a file of FIPS to states, and another of FIPS to counties (which uses the states).
 # To start, I manually opened the XLSX files, cleaned them up, then saved as TSV.
-## Removed extra header rows other than column names
-## Removed parenthetical remarks in column names
-## Removed spaces in column names
-## Fixed the spelling of Consolidated in that column name
+#- Removed extra header rows other than column names
+#- Removed parenthetical remarks in column names
+#- Removed spaces in column names
+#- Fixed the spelling of Consolidated in that column name
+
+# For mapping FIPS to CBSA: https://www.nber.org/research/data/census-core-based-statistical-area-cbsa-federal-information-processing-series-fips-county-crosswalk
 
 import pandas as pd
 
 from fips_helpers import us_state_to_abbrev
 
+STATE_GEOCODE_FILE = "~/Desktop/COVID Programming/US Census/state-geocodes-v2021.tsv"
+COUNTY_GEOCODE_FILE = "~/Desktop/COVID Programming/US Census/all-geocodes-v2021.tsv" 
+CBSA_FILE = "~/Desktop/COVID Programming/US Census/cbsa2fipsxw-25aug2023.csv"
+
 FIPS_COUNTY_OUTPUT_FILE = "fips2county.tsv"
 
-# Open source files from US Census.
+# Open source files we need. The county file will become the master and we will add columns to it.
 
-path = "~/Desktop/COVID Programming/US Census/state-geocodes-v2021.tsv"
-StateDF = pd.read_csv(path, sep='\t', header='infer', dtype=str, encoding='latin-1')
-
-path = "~/Desktop/COVID Programming/US Census/all-geocodes-v2021.tsv"
-CountyDF = pd.read_csv(path, sep='\t', header='infer', dtype=str, encoding='latin-1')
+StateDF = pd.read_csv(STATE_GEOCODE_FILE, sep='\t', header='infer', dtype=str, encoding='latin-1')
+CountyDF = pd.read_csv(COUNTY_GEOCODE_FILE, sep='\t', header='infer', dtype=str, encoding='latin-1')
+CbsaDF = pd.read_csv(CBSA_FILE, header='infer', dtype=str)
 
 # Get rid of states that are not really states and counties that are not counties.
 
@@ -39,13 +43,14 @@ StateDF = StateDF.rename(columns={"State": "StateFIPS"})
 StateDF = StateDF.rename(columns={"Name": "StateName"})
 
 CountyDF = CountyDF.rename(columns={"StateCode": "StateFIPS"})
-CountyDF = CountyDF.rename(columns={"CountyCode": "CountyFIPS_3"})  # just the 3 digit county suffix
+CountyDF = CountyDF.rename(columns={"CountyCode": "CountyFIPS_3"})  # this is just the 3 digit county suffix
 CountyDF = CountyDF.rename(columns={"AreaName": "CountyName"})
 
 # Keep only fields we need.
 
 StateDF = StateDF[["StateFIPS", "StateName"]]
 CountyDF = CountyDF[["StateFIPS", "CountyFIPS_3", "CountyName"]]
+CbsaDF = CbsaDF[["cbsacode", "fipsstatecode", "fipscountycode"]]
 
 # Add state name column to the county list.
 
@@ -63,9 +68,18 @@ CountyDF["CountyFIPS"] = CountyDF["StateFIPS"] + CountyDF["CountyFIPS_3"]
 
 CountyDF["StateAbbr"] = CountyDF["StateName"].str.upper().map(us_state_to_abbrev).fillna(CountyDF["StateName"])
 
-# Add STATE-COUNTY
+# Add STATE_COUNTY
 
 CountyDF["STATE_COUNTY"] = CountyDF["StateAbbr"] + " | " + CountyDF["CountyName"].str.upper()  
+
+# Add CBSA codes.
+
+CbsaDF["CountyFIPS"] = CbsaDF["fipsstatecode"] + CbsaDF["fipscountycode"]  # make 5 digit FIPS for joining
+CbsaDF = CbsaDF[["cbsacode", "CountyFIPS"]]  # keep just what we need
+CbsaDF = CbsaDF.rename(columns={"cbsacode": "CountyCBSA"})  # better field name for final file
+
+
+CountyDF = CountyDF.merge(CbsaDF, how="left", on="CountyFIPS")
 
 # Write it out.
 
