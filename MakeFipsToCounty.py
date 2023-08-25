@@ -46,11 +46,13 @@ CountyDF = CountyDF.rename(columns={"StateCode": "StateFIPS"})
 CountyDF = CountyDF.rename(columns={"CountyCode": "CountyFIPS_3"})  # this is just the 3 digit county suffix
 CountyDF = CountyDF.rename(columns={"AreaName": "CountyName"})
 
+CbsaDF = CbsaDF.rename(columns={"cbsacode": "CountyCBSA"})  
+
 # Keep only fields we need.
 
 StateDF = StateDF[["StateFIPS", "StateName"]]
 CountyDF = CountyDF[["StateFIPS", "CountyFIPS_3", "CountyName"]]
-CbsaDF = CbsaDF[["cbsacode", "fipsstatecode", "fipscountycode"]]
+CbsaDF = CbsaDF[["CountyCBSA", "fipsstatecode", "fipscountycode"]]
 
 # Add state name column to the county list.
 
@@ -75,9 +77,7 @@ CountyDF["STATE_COUNTY"] = CountyDF["StateAbbr"] + " | " + CountyDF["CountyName"
 # Add CBSA codes.
 
 CbsaDF["CountyFIPS"] = CbsaDF["fipsstatecode"] + CbsaDF["fipscountycode"]  # make 5 digit FIPS for joining
-CbsaDF = CbsaDF[["cbsacode", "CountyFIPS"]]  # keep just what we need
-CbsaDF = CbsaDF.rename(columns={"cbsacode": "CountyCBSA"})  # better field name for final file
-
+CbsaDF = CbsaDF[["CountyCBSA", "CountyFIPS"]]  # keep just what we need
 
 CountyDF = CountyDF.merge(CbsaDF, how="left", on="CountyFIPS")
 
