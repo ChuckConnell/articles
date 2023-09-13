@@ -78,16 +78,33 @@ schoolDF = schoolDF.drop(columns=["TAVG"])   # the average temp column does not 
 
 schoolDF = schoolDF.query("DATE != '--------'")    # throw out the first row that just contains a line of hyphens
 
-schoolDF = schoolDF[schoolDF["STATION_NAME"].str.contains(STATION_SUBSTRING, regex=False)]  # just the stations we want
+schoolDF = schoolDF[schoolDF["STATION_NAME"].str.contains(STATION_SUBSTRING, regex=False)]  # keep just the stations we want
 
 schoolDF["DATE"] = pd.to_datetime(schoolDF["DATE"], errors='coerce')  # put in true date format
+schoolDF = schoolDF[schoolDF['DATE'].notna()]   # throw out bad dates
 
 schoolDF = schoolDF[schoolDF['TMAX'].notna()]   # throw out rows with empty temperatures
 schoolDF = schoolDF[schoolDF['TMIN'].notna()]
 
-schoolDF["TMAX"] = schoolDF["TMAX"].astype(int)   # put in true numberic type
+schoolDF["TMAX"] = schoolDF["TMAX"].astype(int)   # put temps in true numberic type
 schoolDF["TMIN"] = schoolDF["TMIN"].astype(int)
-    
+
+# Make a column with the month number, then throw out the months we don't want. I treat July and August as summer months, not school.
+# Yes, I know that many kids go to school in August.
+
+schoolDF['MONTH'] = pd.DatetimeIndex(schoolDF["DATE"]).month
+schoolDF = schoolDF.query("MONTH != 7")    
+schoolDF = schoolDF.query("MONTH != 8")    
+
+# Make a column with the year number, so we can count hot days per year.
+
+schoolDF['YEAR'] = pd.DatetimeIndex(schoolDF["DATE"]).year
+
+# Make a column that states whether the row is a hot day.
+
+schoolDF["HOT_DAY"] = ""   
+schoolDF.loc[(schoolDF["TMAX"] >= HOT), "HOT_DAY"] = "Y"
+
 # Report overall stats
 
 '''
